@@ -4,3 +4,5 @@
 /test/tmp
 /dev/scripts/release
 /bin
+/node_modules
+.DS_Store

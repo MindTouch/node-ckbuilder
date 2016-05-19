@@ -3,403 +3,452 @@
  For licensing, see LICENSE.md
  */
 
-( function() {
-	var regexLib = {
-		// requires : [ 'dialogui' ]
-		requiresArray: Pattern.compile( '^\\s*requires\\s*:\\s*\\[\\s*(.*?)\\s*\\]' ),
-		requiresString: Pattern.compile( '^\\s*requires\\s*:\\s*([\'"])\\s*((?:[a-z0-9-_]+|\\s*,\\s*)+?)\\1\\s*' ),
-		// lang : 'af,ar,bg'
-		langString: Pattern.compile( '^(\\s*lang\\s*:\\s*)([\'"])(\\s*(?:[a-z-_]+|\\s*,\\s*)+?)(\\2\\s*.*$)' ),
-		// matches both CKEDITOR.plugins.add( pluginName AND CKEDITOR.plugins.add( 'pluginName'
-		// can be used to detect where "CKEDITOR.plugins.add" is located in code
-		pluginsAdd: Pattern.compile( 'CKEDITOR.plugins.add\\s*\\(\\s*([\'"]?)([a-zA-Z0-9-_]+)\\1', Pattern.DOTALL ),
-		// matches CKEDITOR.plugins.liststyle =
-		pluginsDef: Pattern.compile( 'CKEDITOR.plugins.[a-z-_0-9]+\\s*=\\s*', Pattern.DOTALL ),
-		// matches only CKEDITOR.plugins.add( 'pluginName'
-		// can be used to find the real plugin name, because the name is not stored in a variable but in a string
-		pluginsAddWithStringName: Pattern.compile( 'CKEDITOR.plugins.add\\s*\\(\\s*([\'"])([a-zA-Z0-9-_]+)\\1', Pattern.DOTALL ),
-		pluginName: Pattern.compile( 'var\\s+pluginName\\s*=\\s*([\'"])([a-zA-Z0-9-_]+)\\1', Pattern.DOTALL ),
-		validPluginProps: Pattern.compile( '(^\\s*icons\\s*:\\s*|^\\s*requires\\s*:\\s*|^\\s*lang\\s*:\\s*|^\\s*$|^\\s*//)', Pattern.DOTALL ),
-		blockComments: Pattern.compile( "/\\*[^\\r\\n]*[\\r\\n]+(.*?)[\\r\\n]+[^\\r\\n]*\\*+/", Pattern.DOTALL )
-	};
+"use strict";
 
-	/**
-	 * Finds the plugin name in given file (plugin.js).
-	 *
-	 * @param {java.io.File} file
-	 * @returns {String|null}
-	 * @member CKBuilder.plugin
-	 * @private
-	 */
-	function findPluginNameInPluginDefinition( file ) {
-		var pluginName = null,
-			code = CKBuilder.io.readFile( file );
+const fs = require( "fs-extra" );
+const path = require( "path" );
+const ckbuilder = {
+	io: require( "./io" ),
+	javascript: require( "./javascript" ),
+	lang: require( "./lang" ),
+	tools: require( "./tools" ),
+	utils: require( "./utils" ),
+	options: require( "./options" )
+};
 
-		code = CKBuilder.javascript.removeWhiteSpace( code, file.getParentFile().getName() + "/plugin.js" );
-		var matcher = regexLib.pluginsAddWithStringName.matcher( code );
-		if ( matcher.find() )
-			pluginName = matcher.group( 2 );
-		else {
-			matcher = regexLib.pluginName.matcher( code );
-			if ( matcher.find() )
-				pluginName = matcher.group( 2 );
+const regexLib = {
+
+	// requires : [ 'dialogui' ]
+	requiresArray: new RegExp( '^\\s*requires\\s*:\\s*\\[\\s*(.*?)\\s*\\]', 'm' ),
+	requiresString: new RegExp( '^\\s*requires\\s*:\\s*([\'"])\\s*((?:[a-z0-9-_]+|\\s*,\\s*)+?)([\'"])\\s*', 'm' ),
+
+	// lang : 'af,ar,bg'
+	langString: new RegExp( '^(\\s*lang\\s*:\\s*)([\'"])(\\s*(?:[a-z-_]+|\\s*,\\s*)+?)(([\'"])\\s*.*$)', 'm' ),
+
+	// matches both CKEDITOR.plugins.add( pluginName AND CKEDITOR.plugins.add( 'pluginName'
+	// can be used to detect where "CKEDITOR.plugins.add" is located in code
+	pluginsAdd: new RegExp( 'CKEDITOR\\.plugins\\.add\\s*\\(\\s*([\'"]?)([a-zA-Z0-9-_]+)([\'"])' ),
+
+	// matches CKEDITOR.plugins.liststyle =
+	pluginsDef: new RegExp( 'CKEDITOR\\.plugins\\.[a-z-_0-9]+\\s*=\\s*' ),
+
+	// matches only CKEDITOR.plugins.add( 'pluginName'
+	// can be used to find the real plugin name, because the name is not stored in a variable but in a string
+	pluginsAddWithStringName: new RegExp( 'CKEDITOR\\.plugins\\.add\\s*\\(\\s*([\'"])([a-zA-Z0-9-_]+)([\'"])' ),
+	pluginName: new RegExp( 'var\\s+pluginName\\s*=\\s*([\'"])([a-zA-Z0-9-_]+)([\'"])' ),
+	validPluginProps: new RegExp( '(^\\s*icons\\s*:\\s*|^\\s*requires\\s*:\\s*|^\\s*lang\\s*:\\s*|^\\s*$|^\\s*//)', 'm' ),
+	blockComments: new RegExp( "/\\*[^\\r\\n]*[\\r\\n]+(.*?)[\\r\\n]+[^\\r\\n]*\\*+/", 'g' )
+};
+
+/**
+ * Finds the plugin name in given file (plugin.js).
+ *
+ * @param {java.io.File} file
+ * @returns {String|null}
+ * @member ckbuilder.plugin
+ * @private
+ */
+function findPluginNameInPluginDefinition( file ) {
+	var pluginName;
+	var code = ckbuilder.io.readFile( file );
+
+	code = ckbuilder.javascript.removeWhiteSpace( code, path.basename( path.dirname( file ) ) + "/plugin.js" );
+	var matcher = regexLib.pluginsAddWithStringName.exec( code );
+	if ( matcher !== null ) {
+		pluginName = matcher[ 2 ];
+	} else {
+		matcher = regexLib.pluginName.exec( code );
+		if ( matcher !== null ) {
+			pluginName = matcher[ 2 ];
 		}
-
-		return ( pluginName === null ? pluginName : String( pluginName ) );
 	}
 
-	/**
-	 * Finds the correct plugin.js in given directory.
-	 *
-	 * @param {java.io.File} dir
-	 * @returns {Boolean|String} Path to the right plugin.js file or false.
-	 * @member CKBuilder.plugin
-	*/
-	function findCorrectPluginFile( dir ) {
-		var pluginFiles = CKBuilder.utils.findFilesInDirectory( 'plugin.js', dir ),
-			result = false;
+	return pluginName;
+}
 
-		if ( pluginFiles.length === 1 )
-			result = pluginFiles[ 0 ];
+/**
+ * Finds the correct plugin.js in given directory.
+ *
+ * @param {java.io.File} dir
+ * @returns {Boolean|String} Path to the right plugin.js file or false.
+ * @member ckbuilder.plugin
+*/
+function findCorrectPluginFile( dir ) {
+	var pluginFiles = ckbuilder.utils.findFilesInDirectory( 'plugin.js', dir );
+	var result = false;
 
-		// let's exclude plugin.js located in the _source or dev folders
-		else if ( pluginFiles.length > 1 ) {
-			var tmpArray = [];
-			for ( var i = 0; i < pluginFiles.length; i++ ) {
-				if ( !pluginFiles[ i ].match( /(\/|\\)(?:_source|dev)\1/i ) )
-					tmpArray.push( pluginFiles[ i ] );
-			}
-
-			if ( tmpArray.length === 1 )
-				result = tmpArray[ 0 ];
-		}
-
-		return result;
+	if ( pluginFiles.length === 1 ) {
+		result = pluginFiles[ 0 ];
 	}
 
+	// let's exclude plugin.js located in the _source or dev folders
+	else if ( pluginFiles.length > 1 ) {
+		var tmpArray = [];
+		for ( var i = 0; i < pluginFiles.length; i++ ) {
+			if ( !pluginFiles[ i ].match( /(\/|\\)(?:_source|dev)\1/i ) ) {
+				tmpArray.push( pluginFiles[ i ] );
+			}
+		}
+
+		if ( tmpArray.length === 1 ) {
+			result = tmpArray[ 0 ];
+		}
+	}
+
+	return result;
+}
+
+/**
+ * Handle plugins. Validate them and preprocess.
+ *
+ * @class
+ */
+ckbuilder.plugin = {
 	/**
-	 * Handle plugins. Validate them and preprocess.
+	 * Returns an array with plugins required by this plugin.
 	 *
-	 * @class
+	 * @param {java.io.File} file Plugin file
+	 * @returns {Array}
+	 * @static
 	 */
-	CKBuilder.plugin = {
-		/**
-		 * Returns an array with plugins required by this plugin.
-		 *
-		 * @param {java.io.File} file Plugin file
-		 * @returns {Array}
-		 * @static
-		 */
-		getRequiredPlugins: function( file ) {
-			if ( CKBuilder.options.debug > 1 )
-				print( "Getting required plugins from " + file.getPath() );
+	getRequiredPlugins: function( file ) {
+		if ( ckbuilder.options.debug > 1 ) {
+			console.log( "Getting required plugins from " + file );
+		}
 
-			var text = String( CKBuilder.io.readFile( file ) ),
-				// Remove comments
-				matcher = regexLib.blockComments.matcher( text );
+		var text = ckbuilder.io.readFile( file );
 
-			if ( matcher.find() )
-				text = matcher.replaceAll( '' );
+		// Remove comments
+		text = text.replace( regexLib.blockComments, '' );
 
-			var lines = text.split( "\n" ),
-				pluginsAddFound = false,
-				checkValidPluginProps = false,
-				invalidLinesCounter = 0;
+		var lines = text.split( "\n" );
+		var pluginsAddFound = false;
+		var checkValidPluginProps = false;
+		var invalidLinesCounter = 0;
+		var matcher;
 
-			for ( var i = 0; i < lines.length; i++ ) {
-				if ( !pluginsAddFound ) {
-					matcher = regexLib.pluginsAdd.matcher( lines[ i ] );
-					if ( matcher.find() )
-						pluginsAddFound = true;
-					else {
-						matcher = regexLib.pluginsDef.matcher( lines[ i ] );
-						if ( matcher.find() )
-							pluginsAddFound = true;
-					}
-					if ( pluginsAddFound )
-						invalidLinesCounter = 0;
-				}
-
-				var requires;
-				if ( pluginsAddFound ) {
-					matcher = regexLib.requiresArray.matcher( lines[ i ] );
-					if ( matcher.find() ) {
-						requires = String( matcher.group( 1 ) );
-						if ( CKBuilder.options.debug > 1 )
-							print( "Found: " + matcher.group( 1 ) );
-						return requires.replace( /['" ]/g, '' ).split( "," );
-					}
-
-					matcher = regexLib.requiresString.matcher( lines[ i ] );
-					if ( matcher.find() ) {
-						requires = String( matcher.group( 2 ) );
-						if ( CKBuilder.options.debug > 1 )
-							print( "Found: " + matcher.group( 2 ) );
-						return requires.replace( /['" ]/g, '' ).split( "," );
-					}
-
-					if ( checkValidPluginProps ) {
-						matcher = regexLib.validPluginProps.matcher( lines[ i ] );
-						if ( !matcher.find() )
-							invalidLinesCounter++;
-						if ( invalidLinesCounter > 5 ) {
-							pluginsAddFound = false;
-							checkValidPluginProps = false;
-						}
-					}
-					// we're in the same line where plugin definition has started, start checking from another line
-					else
-						checkValidPluginProps = true;
-				}
-			}
-			return [];
-		},
-
-		/**
-		 * Updates lang property in file.
-		 *
-		 * @param {java.io.File} sourceLocation
-		 * @param {Object} languages
-		 * @returns {Array|Boolean}
-		 * @static
-		 */
-		updateLangProperty: function( sourceLocation, languages ) {
-			var text = String( CKBuilder.io.readFile( sourceLocation ) ),
-				lines = text.split( "\n" ),
-				pluginsAddFound = false,
-				checkValidPluginProps = false,
-				langPropertyChanged = false,
-				invalidLinesCounter = 0,
-				validLanguages;
-
-			for ( var i = 0; i < lines.length; i++ ) {
-				var matcher;
-				if ( !pluginsAddFound ) {
-					matcher = regexLib.pluginsAdd.matcher( lines[ i ] );
-
-					if ( matcher.find() )
-						pluginsAddFound = true;
-					else {
-						matcher = regexLib.pluginsDef.matcher( lines[ i ] );
-						if ( matcher.find() )
-							pluginsAddFound = true;
-					}
-					if ( pluginsAddFound )
-						invalidLinesCounter = 0;
-				}
-
-				if ( pluginsAddFound ) {
-					matcher = regexLib.langString.matcher( lines[ i ] );
-					if ( matcher.find() ) {
-						var pluginLanguages = String( matcher.group( 3 ) ).replace( /['" ]/g, '' ).split( "," );
-
-						validLanguages = [];
-
-						for ( var langCode in languages ) {
-							if ( languages[ langCode ] && pluginLanguages.indexOf( langCode ) !== -1 )
-								validLanguages.push( langCode );
-
-						}
-						// better to change the lang property only if we're able to find some matching language files...
-						if ( validLanguages.length ) {
-							if ( validLanguages.length !== pluginLanguages.length ) {
-								lines[ i ] = matcher.group( 1 ) + matcher.group( 2 ) + validLanguages.join( ',' ) + matcher.group( 4 );
-								langPropertyChanged = true;
-							} else
-								return true;
-
-						}
-					}
-					if ( checkValidPluginProps ) {
-						matcher = regexLib.validPluginProps.matcher( lines[ i ] );
-						if ( !matcher.find() )
-							invalidLinesCounter++;
-
-						if ( invalidLinesCounter > 5 ) {
-							pluginsAddFound = false;
-							checkValidPluginProps = false;
-						}
-					}
-					// We're in the same line where plugin definition has started, start checking from another line.
-					else
-						checkValidPluginProps = true;
-				}
-			}
-			if ( langPropertyChanged ) {
-				if ( CKBuilder.options.debug > 1 )
-					print( "Updated lang property in " + sourceLocation.getPath() );
-
-				CKBuilder.io.saveFile( sourceLocation, lines.join( "\r\n" ), true );
-				return validLanguages;
-			}
-
-			return false;
-		},
-
-		/**
-		 * Checks specified plugin for errors.
-		 *
-		 * @param {java.io.File|String} plugin Path to the plugin (or the java.io.File object pointing to a plugin file).
-		 * @param {Object=} options
-		 * @param {Boolean=} options.exitOnError
-		 * @param {String=} options.pluginName
-		 * @returns {String}
-		 * @static
-		 */
-		verify: function( plugin, options ) {
-			var errors = "",
-				workingDirObj = CKBuilder.io.prepareWorkingDirectoryIfNeeded( plugin ),
-				workingDir = workingDirObj.directory;
-
-			if ( CKBuilder.options.debug > 1 )
-				print( "Validating JS files" );
-
-			errors += CKBuilder.tools.validateJavaScriptFiles( workingDir );
-			errors += CKBuilder.tools.validateJavaScriptFilesUsingCC( workingDir );
-
-			if ( !errors ) {
-				var pluginPath = findCorrectPluginFile( workingDir );
-				if ( !pluginPath ) {
-					// check why findCorrectPluginFile() returned false
-					var pluginPaths = CKBuilder.utils.findFilesInDirectory( 'plugin.js', workingDir );
-					if ( pluginPaths.length > 1 ) {
-						var tmpArray = [],
-							workingDirPath = workingDir.getAbsolutePath();
-
-						for ( var i = 0; i < pluginPaths.length; i++ ) {
-							pluginPaths[ i ] = String( pluginPaths[ i ].replace( workingDirPath, '' ) ).replace( /\\/g, '/' );
-							if ( !pluginPaths[ i ].match( /(\/|\\)(?:_source|dev)\1/i ) )
-								tmpArray.push( pluginPaths[ i ] );
-						}
-						if ( !tmpArray.length )
-							errors += "Could not find plugin.js:\n" + pluginPaths.join( "\n" ) + "\n";
-						else if ( tmpArray.length > 1 )
-							errors += "Found more than one plugin.js:\n" + pluginPaths.join( "\n" ) + "\n";
-					} else
-						errors += "Unable to locate plugin.js" + "\n";
+		for ( var i = 0; i < lines.length; i++ ) {
+			if ( !pluginsAddFound ) {
+				matcher = regexLib.pluginsAdd.exec( lines[ i ] );
+				if ( matcher !== null ) {
+					pluginsAddFound = true;
 				} else {
-					if ( options && options.pluginName ) {
-						var pluginName = findPluginNameInPluginDefinition( new File( pluginPath ) );
-						if ( pluginName && pluginName !== options.pluginName )
-							errors += "The plugin name defined inside plugin.js (" + pluginName + ") does not match the expected plugin name (" + options.pluginName + ")" + "\n";
+					matcher = regexLib.pluginsDef.exec( lines[ i ] );
+					if ( matcher !== null ) {
+						pluginsAddFound = true;
 					}
+				}
+				if ( pluginsAddFound ) {
+					invalidLinesCounter = 0;
 				}
 			}
 
-			workingDirObj.cleanUp();
+			var requires;
+			if ( pluginsAddFound ) {
+				matcher = regexLib.requiresArray.exec( lines[ i ] );
+				if ( matcher !== null ) {
+					requires = matcher[ 1 ];
+					if ( ckbuilder.options.debug > 1 ) {
+						console.log( "Found: " + matcher[ 1 ] );
+					}
+					return requires.replace( /['" ]/g, '' ).split( "," );
+				}
 
-			if ( errors && options && options.exitOnError )
-				System.exit( 500 );
+				matcher = regexLib.requiresString.exec( lines[ i ] );
+				if ( matcher !== null ) {
+					requires = matcher[ 2 ];
+					if ( ckbuilder.options.debug > 1 ) {
+						console.log( "Found: " + matcher[ 2 ] );
+					}
+					return requires.replace( /['" ]/g, '' ).split( "," );
+				}
 
-			return errors ? errors : "OK";
-		},
+				if ( checkValidPluginProps ) {
+					matcher = regexLib.validPluginProps.exec( lines[ i ] );
+					if ( matcher === null ) {
+						invalidLinesCounter++;
+					}
+					if ( invalidLinesCounter > 5 ) {
+						pluginsAddFound = false;
+						checkValidPluginProps = false;
+					}
+				}
+				// we're in the same line where plugin definition has started, start checking from another line
+				else {
+					checkValidPluginProps = true;
+				}
+			}
+		}
+		return [];
+	},
 
-		/**
-		 * Preprocesses the specified plugin and saves in an optimized form in the target folder.
-		 *
-		 * @param {String} plugin Path to the plugin
-		 * @param {String} dstDir Path to the destination folder
-		 * @static
-		 */
-		preprocess: function( plugin, dstDir ) {
-			var workingDirObj = CKBuilder.io.prepareWorkingDirectoryIfNeeded( plugin ),
-				workingDir = workingDirObj.directory;
+	/**
+	 * Updates lang property in file.
+	 *
+	 * @param {java.io.File} sourceLocation
+	 * @param {Object} languages
+	 * @returns {Array|Boolean}
+	 * @static
+	 */
+	updateLangProperty: function( sourceLocation, languages ) {
+		var text = ckbuilder.io.readFile( sourceLocation );
+		var lines = text.split( "\n" );
+		var pluginsAddFound = false;
+		var checkValidPluginProps = false;
+		var langPropertyChanged = false;
+		var invalidLinesCounter = 0;
+		var validLanguages;
 
-			if ( this.verify( workingDir, { exitOnError: false } ) !== "OK" ) {
-				workingDirObj.cleanUp();
-				throw( "The plugin is invalid" );
+		for ( var i = 0; i < lines.length; i++ ) {
+			var matcher;
+			if ( !pluginsAddFound ) {
+				matcher = regexLib.pluginsAdd.exec( lines[ i ] );
+
+				if ( matcher !== null ) {
+					pluginsAddFound = true;
+				} else {
+					matcher = regexLib.pluginsDef.exec( lines[ i ] );
+					if ( matcher !== null ) {
+						pluginsAddFound = true;
+					}
+				}
+				if ( pluginsAddFound ) {
+					invalidLinesCounter = 0;
+				}
 			}
 
+			if ( pluginsAddFound ) {
+				matcher = regexLib.langString.exec( lines[ i ] );
+				if ( matcher !== null ) {
+					var pluginLanguages = matcher[ 3 ].replace( /['" ]/g, '' ).split( "," );
+
+					validLanguages = [];
+
+					for ( var langCode in languages ) {
+						if ( languages[ langCode ] && pluginLanguages.indexOf( langCode ) !== -1 ) {
+							validLanguages.push( langCode );
+						}
+
+					}
+					// better to change the lang property only if we're able to find some matching language files...
+					if ( validLanguages.length ) {
+						if ( validLanguages.length !== pluginLanguages.length ) {
+							lines[ i ] = matcher[ 1 ] + matcher[ 2 ] + validLanguages.join( ',' ) + matcher[ 4 ];
+							langPropertyChanged = true;
+						} else {
+							return true;
+						}
+
+					}
+				}
+				if ( checkValidPluginProps ) {
+					matcher = regexLib.validPluginProps.exec( lines[ i ] );
+					if ( matcher === null ) {
+						invalidLinesCounter++;
+					}
+
+					if ( invalidLinesCounter > 5 ) {
+						pluginsAddFound = false;
+						checkValidPluginProps = false;
+					}
+				}
+				// We're in the same line where plugin definition has started, start checking from another line.
+				else {
+					checkValidPluginProps = true;
+				}
+			}
+		}
+		if ( langPropertyChanged ) {
+			if ( ckbuilder.options.debug > 1 ) {
+				console.log( "Updated lang property in " + sourceLocation );
+			}
+
+			ckbuilder.io.saveFile( sourceLocation, lines.join( "\r\n" ), true );
+			return validLanguages;
+		}
+
+		return false;
+	},
+
+	/**
+	 * Checks specified plugin for errors.
+	 *
+	 * @param {java.io.File|String} plugin Path to the plugin (or the java.io.File object pointing to a plugin file).
+	 * @param {Object=} options
+	 * @param {Boolean=} options.exitOnError
+	 * @param {String=} options.pluginName
+	 * @returns {String}
+	 * @static
+	 */
+	verify: function( plugin, options ) {
+		var errors = "";
+		var workingDirObj = ckbuilder.io.prepareWorkingDirectoryIfNeeded( plugin );
+		var workingDir = workingDirObj.directory;
+
+		if ( ckbuilder.options.debug > 1 ) {
+			console.log( "Validating JS files" );
+		}
+
+		errors += ckbuilder.tools.validateJavaScriptFiles( workingDir );
+
+		if ( !errors ) {
 			var pluginPath = findCorrectPluginFile( workingDir );
 			if ( !pluginPath ) {
-				workingDirObj.cleanUp();
-				throw( "The plugin file (plugin.js) was not found in " + workingDir.getCanonicalPath() );
-			}
 
-			var pluginFile = new File( pluginPath ),
-				targetFolder = new File( dstDir );
+				// check why findCorrectPluginFile() returned false
+				var pluginPaths = ckbuilder.utils.findFilesInDirectory( 'plugin.js', workingDir );
+				if ( pluginPaths.length > 1 ) {
+					var tmpArray = [];
+					var workingDirPath = path.resolve( workingDir );
 
-			try {
-				targetFolder.mkdirs();
-			} catch ( e ) {
-				workingDirObj.cleanUp();
-				throw( "Unable to create target directory: " + targetFolder.getAbsolutePath() + "\nError: " + e.getMessage() );
-			}
-
-			var flags = {},
-				rootFolder = pluginFile.getParentFile();
-
-			CKBuilder.io.copy( rootFolder, targetFolder, function( sourceLocation, targetLocation ) {
-					if ( sourceLocation.isFile() ) {
-						// Manifest file is converted later to a "php.ini" format and saved as manifest.mf
-						if ( String( sourceLocation.getAbsolutePath() ) === String( File( rootFolder, "manifest.js" ).getAbsolutePath() ) )
-							return -1;
-
-						var copied = CKBuilder.tools.fixLineEndings( sourceLocation, targetLocation );
-						if ( copied ) {
-							// Do not process any directives
-							if ( CKBuilder.options.leaveJsUnminified )
-								return 1;
-
-							var flag = CKBuilder.tools.processDirectives( targetLocation, null, true );
-							if ( flag.LEAVE_UNMINIFIED )
-								flags[ targetLocation.getAbsolutePath() ] = flag;
-
-							return 1;
+					for ( var i = 0; i < pluginPaths.length; i++ ) {
+						pluginPaths[ i ] = String( pluginPaths[ i ].replace( workingDirPath, '' ) ).replace( /\\/g, '/' );
+						if ( !pluginPaths[ i ].match( /(\/|\\)(?:_source|dev)\1/i ) ) {
+							tmpArray.push( pluginPaths[ i ] );
 						}
-					} else {
-						if ( !CKBuilder.options.leaveJsUnminified && String( sourceLocation.getAbsolutePath() ) === String( File( rootFolder, "lang" ).getAbsolutePath() ) )
-							return -1;
 					}
-					return 0;
-				}, function( targetLocation ) {
-					if ( CKBuilder.options.leaveJsUnminified )
-						return;
-
-					if ( CKBuilder.io.getExtension( targetLocation.getName() ) === 'js' ) {
-						var targetPath = targetLocation.getAbsolutePath();
-						if ( flags[ targetPath ] && flags[ targetPath ].LEAVE_UNMINIFIED ) {
-							if ( CKBuilder.options.debug > 1 )
-								print( "Leaving unminified: " + targetLocation.getPath() );
-
-							CKBuilder.io.saveFile( targetLocation, CKBuilder.tools.removeLicenseInstruction( CKBuilder.io.readFile( targetLocation ) ), true );
-							return;
-						}
-						// remove @license information from files that will go into ckeditor.js (plugin.js)
-						if ( String( targetPath ) === String( File( targetFolder, "plugin.js" ).getAbsolutePath() ) ) {
-							if ( CKBuilder.options.debug > 2 )
-								print( "Removing license information from " + targetPath );
-							CKBuilder.io.saveFile( targetLocation, CKBuilder.tools.removeLicenseInstruction( CKBuilder.io.readFile( targetLocation ) ), true );
-						}
-
-						if ( CKBuilder.options.debug )
-							print( "Minifying: " + targetLocation.getPath() );
-
-						CKBuilder.javascript.minify( targetLocation );
+					if ( !tmpArray.length ) {
+						errors += "Could not find plugin.js:\n" + pluginPaths.join( "\n" ) + "\n";
+					} else if ( tmpArray.length > 1 ) {
+						errors += "Found more than one plugin.js:\n" + pluginPaths.join( "\n" ) + "\n";
 					}
-				} );
-
-			var langFolder = new File( rootFolder, "lang" ),
-				targetLangFolder = new File( targetFolder, "lang" );
-			if ( !CKBuilder.options.leaveJsUnminified && langFolder.exists() ) {
-				targetLangFolder.mkdir();
-				var translations = {};
-				print( "Processing lang folder" );
-				translations.en = CKBuilder.lang.loadLanguageFile( new File( langFolder, "en.js" ) ).translation;
-				var children = langFolder.list();
-				for ( var i = 0; i < children.length; i++ ) {
-					var langFile = children[ i ].match( /^([a-z]{2}(?:-[a-z]+)?)\.js$/ );
-					if ( langFile ) {
-						var langCode = langFile[ 1 ];
-						translations[ langCode ] = CKBuilder.utils.merge( translations.en, CKBuilder.lang.loadLanguageFile( new File( langFolder, children[ i ] ) ).translation );
-						var pseudoObject = JSON.stringify( translations[ langCode ] ).replace( /^\{(.*)\}$/, '$1' );
-						CKBuilder.io.saveFile( File( targetLangFolder, children[ i ] ), pseudoObject, true );
+				} else {
+					errors += "Unable to locate plugin.js" + "\n";
+				}
+			} else {
+				if ( options && options.pluginName ) {
+					var pluginName = findPluginNameInPluginDefinition( path.resolve( pluginPath ) );
+					if ( pluginName && pluginName !== options.pluginName ) {
+						errors += "The plugin name defined inside plugin.js (" + pluginName + ") does not match the expected plugin name (" + options.pluginName + ")" + "\n";
 					}
 				}
 			}
-
-			workingDirObj.cleanUp();
 		}
-	};
 
-}() );
+		workingDirObj.cleanUp();
+
+		if ( errors && options && options.exitOnError ) {
+			process.exit( 1 );
+		}
+
+		return errors ? errors : "OK";
+	},
+
+	/**
+	 * Preprocesses the specified plugin and saves in an optimized form in the target folder.
+	 *
+	 * @param {String} plugin Path to the plugin
+	 * @param {String} dstDir Path to the destination folder
+	 * @static
+	 */
+	preprocess: function( plugin, dstDir ) {
+		var workingDirObj = ckbuilder.io.prepareWorkingDirectoryIfNeeded( plugin );
+		var workingDir = workingDirObj.directory;
+
+		if ( this.verify( workingDir, { exitOnError: false } ) !== "OK" ) {
+			workingDirObj.cleanUp();
+			throw( "The plugin is invalid" );
+		}
+
+		var pluginPath = findCorrectPluginFile( workingDir );
+		if ( !pluginPath ) {
+			workingDirObj.cleanUp();
+			throw( "The plugin file (plugin.js) was not found in " + path.resolve( workingDir ) );
+		}
+
+		var pluginFile = path.resolve( pluginPath );
+		var targetFolder = path.resolve( dstDir );
+
+		try {
+			fs.mkdirSync( targetFolder );
+		} catch ( e ) {
+			workingDirObj.cleanUp();
+			throw( "Unable to create target directory: " + path.resolve( targetFolder ) + "\nError: " + e.message );
+		}
+
+		var flags = {};
+		var rootFolder = path.dirname( pluginFile );
+
+		ckbuilder.io.copy( rootFolder, targetFolder, function( sourceLocation, targetLocation ) {
+				if ( fs.statSync( sourceLocation ).isFile() ) {
+					// Manifest file is converted later to a "php.ini" format and saved as manifest.mf
+					if ( path.resolve( sourceLocation ) === path.resolve( path.join( rootFolder, "manifest.js" ) ) ) {
+						return -1;
+					}
+
+					var copied = ckbuilder.tools.fixLineEndings( sourceLocation, targetLocation );
+					if ( copied ) {
+						// Do not process any directives
+						if ( ckbuilder.options.leaveJsUnminified ) {
+							return 1;
+						}
+
+						var flag = ckbuilder.tools.processDirectives( targetLocation, null, true );
+						if ( flag.LEAVE_UNMINIFIED ) {
+							flags[ path.resolve( targetLocation ) ] = flag;
+						}
+
+						return 1;
+					}
+				} else {
+					if ( !ckbuilder.options.leaveJsUnminified && path.resolve( sourceLocation ) === path.resolve( path.join( rootFolder, "lang" ) ) ) {
+						return -1;
+					}
+				}
+				return 0;
+			}, function( targetLocation ) {
+				if ( ckbuilder.options.leaveJsUnminified ) {
+					return;
+				}
+
+				if ( ckbuilder.io.getExtension( path.basename( targetLocation ) ) === 'js' ) {
+					var targetPath = path.resolve( targetLocation );
+					if ( flags[ targetPath ] && flags[ targetPath ].LEAVE_UNMINIFIED ) {
+						if ( ckbuilder.options.debug > 1 ) {
+							console.log( "Leaving unminified: " + targetLocation.getPath() );
+						}
+
+						ckbuilder.io.saveFile( targetLocation, ckbuilder.tools.removeLicenseInstruction( ckbuilder.io.readFile( targetLocation ) ), true );
+						return;
+					}
+
+					// remove @license information from files that will go into ckeditor.js (plugin.js)
+					if ( targetPath === path.resolve( path.join( targetFolder, "plugin.js" ) ) ) {
+						if ( ckbuilder.options.debug > 2 ) {
+							console.log( "Removing license information from " + targetPath );
+						}
+						ckbuilder.io.saveFile( targetLocation, ckbuilder.tools.removeLicenseInstruction( ckbuilder.io.readFile( targetLocation ) ), true );
+					}
+
+					if ( ckbuilder.options.debug ) {
+						console.log( "Minifying: " + targetLocation );
+					}
+
+					ckbuilder.javascript.minify( targetLocation );
+				}
+			} );
+
+		var langFolder = path.join( rootFolder, "lang" );
+		var targetLangFolder = path.join( targetFolder, "lang" );
+		if ( !ckbuilder.options.leaveJsUnminified && ckbuilder.io.exists( langFolder ) ) {
+			fs.mkdirSync( targetLangFolder );
+			var translations = {};
+			console.log( "Processing lang folder" );
+			translations.en = ckbuilder.lang.loadLanguageFile( path.join( langFolder, "en.js" ) ).translation;
+			var children = fs.readdirSync( langFolder );
+			for ( var i = 0; i < children.length; i++ ) {
+				var langFile = children[ i ].match( /^([a-z]{2}(?:-[a-z]+)?)\.js$/ );
+				if ( langFile ) {
+					var langCode = langFile[ 1 ];
+					translations[ langCode ] = ckbuilder.utils.merge( translations.en, ckbuilder.lang.loadLanguageFile( path.join( langFolder, children[ i ] ) ).translation );
+					var pseudoObject = JSON.stringify( translations[ langCode ] ).replace( /^\{(.*)\}$/, '$1' );
+					ckbuilder.io.saveFile( path.join( targetLangFolder, children[ i ] ), pseudoObject, true );
+				}
+			}
+		}
+
+		workingDirObj.cleanUp();
+	}
+};
+
+module.exports = ckbuilder.plugin;

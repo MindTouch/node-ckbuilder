@@ -20,7 +20,7 @@
  *
  * @class YAHOO.compressor
  */
-this.YAHOO = this.YAHOO || {};
+var YAHOO = {};
 YAHOO.compressor = YAHOO.compressor || {};
 
 /**
@@ -146,7 +146,7 @@ YAHOO.compressor.cssmin = function( css, linebreakpos ) {
 
 	var startIndex = 0, endIndex = 0, i = 0, max = 0, preservedTokens = [], comments = [], token = '', totallen = css.length, placeholder = '';
 
-	css = this._extractDataUrls( css, preservedTokens );
+	css = YAHOO.compressor._extractDataUrls( css, preservedTokens );
 
 	// collect all comment blocks...
 	while ( ( startIndex = css.indexOf( "/*", startIndex ) ) >= 0 ) {
@@ -288,7 +288,7 @@ YAHOO.compressor.cssmin = function( css, linebreakpos ) {
 	} );
 
 	// Shorten colors from #AABBCC to #ABC.
-	css = this._compressHexColors( css );
+	css = YAHOO.compressor._compressHexColors( css );
 
 	// border: none -> border:0
 	css = css.replace( /(border|border-top|border-right|border-bottom|border-right|outline|background):none(;|\})/gi, function( all, prop, tail ) {
@@ -331,3 +331,5 @@ YAHOO.compressor.cssmin = function( css, linebreakpos ) {
 	return css;
 
 };
+
+module.exports = YAHOO.compressor.cssmin;

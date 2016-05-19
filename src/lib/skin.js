@@ -3,273 +3,300 @@
  For licensing, see LICENSE.md
  */
 
-( function() {
-	var regexLib = {
-		skinName: Pattern.compile( 'CKEDITOR.skin.name\\s*\\=\\s*([\'"])([a-zA-Z0-9-_]+)\\1', Pattern.DOTALL )
-	};
+"use strict";
 
-	/**
-	 * Finds the skin name in give file (skin.js).
-	 *
-	 * @param {java.io.File} file
-	 * @returns {String|null}
-	 * @private
-	 * @member CKBuilder.skin
-	 */
-	function findSkinNameInSkinDefinition( file ) {
-		var code = CKBuilder.io.readFile( file );
+const fs = require( "fs-extra" );
+const path = require( "path" );
+const ckbuilder = {
+	io: require( "./io" ),
+	javascript: require( "./javascript" ),
+	css: require( "./css" ),
+	image: require( "./image" ),
+	tools: require( "./tools" ),
+	utils: require( "./utils" ),
+	options: require( "./options" )
+};
 
-		code = CKBuilder.javascript.removeWhiteSpace( code, file.getParentFile().getName() + "/skin.js" );
-		var matcher = regexLib.skinName.matcher( code ),
-			skinName;
-		if ( matcher.find() )
-			skinName = matcher.group( 2 );
+const regexLib = {
+	skinName: new RegExp( 'CKEDITOR\\.skin\\.name\\s*\\=\\s*([\'"])([a-zA-Z0-9-_]+)([\'"])' )
+};
 
-		return skinName === null ? null : String( skinName );
+/**
+ * Finds the skin name in give file (skin.js).
+ *
+ * @param {java.io.File} file
+ * @returns {String|null}
+ * @private
+ * @member ckbuilder.skin
+ */
+function findSkinNameInSkinDefinition( file ) {
+	var code = ckbuilder.io.readFile( file );
+
+	code = ckbuilder.javascript.removeWhiteSpace( code, path.basename( path.dirname( file ) ) + "/skin.js" );
+	var matcher = regexLib.skinName.exec( code );
+	var skinName;
+	if ( matcher !== null ) {
+		skinName = matcher[ 2 ];
 	}
 
-	/**
-	 * Finds the correct skin.js in given directory.
-	 *
-	 * @param {java.io.File} dir
-	 * @returns {Boolean|String} Path to the right skin.js file or false.
-	 * @member CKBuilder.skin
-	 */
-	function findCorrectSkinFile( dir ) {
-		var skinFiles = CKBuilder.utils.findFilesInDirectory( 'skin.js', dir );
+	return skinName;
+}
 
-		if ( !skinFiles.length )
-			return false;
-		if ( skinFiles.length === 1 )
-			return skinFiles[ 0 ];
-		// let's exclude skin.js located in the _source folder
-		if ( skinFiles.length > 1 ) {
-			var tmpArray = [];
-			for ( var i = 0; i < skinFiles.length; i++ ) {
-				if ( !skinFiles[ i ].match( /(\/|\\)_source\1/ ) )
-					tmpArray.push( skinFiles[ i ] );
+/**
+ * Finds the correct skin.js in given directory.
+ *
+ * @param {java.io.File} dir
+ * @returns {Boolean|String} Path to the right skin.js file or false.
+ * @member ckbuilder.skin
+ */
+function findCorrectSkinFile( dir ) {
+	var skinFiles = ckbuilder.utils.findFilesInDirectory( 'skin.js', dir );
 
+	if ( !skinFiles.length ) {
+		return false;
+	}
+	if ( skinFiles.length === 1 ) {
+		return skinFiles[ 0 ];
+	}
+
+	// let's exclude skin.js located in the _source folder
+	if ( skinFiles.length > 1 ) {
+		var tmpArray = [];
+		for ( var i = 0; i < skinFiles.length; i++ ) {
+			if ( !skinFiles[ i ].match( /(\/|\\)_source\1/ ) ) {
+				tmpArray.push( skinFiles[ i ] );
 			}
-			if ( !tmpArray.length )
-				return false;
-
-			else if ( tmpArray.length > 1 )
-				return false;
-
-			else
-				return tmpArray[ 0 ];
-
+		}
+		if ( !tmpArray.length ) {
+			return false;
+		} else if ( tmpArray.length > 1 ) {
+			return false;
+		} else {
+			return tmpArray[ 0 ];
 		}
 	}
+}
 
+/**
+ * Handle skins. Validate them and preprocess.
+ *
+ * @class
+ */
+ckbuilder.skin = {
 	/**
-	 * Handle skins. Validate them and preprocess.
+	 * Checks specified skin for errors.
 	 *
-	 * @class
+	 * @param {String} skin
+	 * @param {Object} options
+	 * @param {String=} options.skinName
+	 * @param {Boolean=} options.exitOnError
+	 * @static
 	 */
-	CKBuilder.skin = {
-		/**
-		 * Checks specified skin for errors.
-		 *
-		 * @param {String} skin
-		 * @param {Object} options
-		 * @param {String=} options.skinName
-		 * @param {Boolean=} options.exitOnError
-		 * @static
-		 */
-		verify: function( skin, options ) {
-			var skinPath,
-				errors = '',
-				workingDirObj = CKBuilder.io.prepareWorkingDirectoryIfNeeded( skin ),
-				workingDir = workingDirObj.directory;
+	verify: function( skin, options ) {
+		var skinPath;
+		var errors = '';
+		var workingDirObj = ckbuilder.io.prepareWorkingDirectoryIfNeeded( skin );
+		var workingDir = workingDirObj.directory;
 
-			if ( CKBuilder.options.debug > 1 )
-				print( "Validating JS files" );
+		if ( ckbuilder.options.debug > 1 ) {
+			console.log( "Validating JS files" );
+		}
 
-			errors += CKBuilder.tools.validateJavaScriptFiles( workingDir );
-			errors += CKBuilder.tools.validateJavaScriptFilesUsingCC( workingDir );
+		errors += ckbuilder.tools.validateJavaScriptFiles( workingDir );
 
-			if ( !errors ) {
-				skinPath = findCorrectSkinFile( workingDir );
-				if ( !skinPath ) {
-					// check why findCorrectSkinFile() returned false
-					var skinPaths = CKBuilder.utils.findFilesInDirectory( 'skin.js', workingDir );
-					if ( skinPaths.length > 1 ) {
-						var tmpArray = [],
-							workingDirPath = workingDir.getAbsolutePath();
-						for ( var i = 0; i < skinPaths.length; i++ ) {
-							skinPaths[ i ] = String( skinPaths[ i ].replace( workingDirPath, '' ) ).replace( /\\/g, '/' );
-							if ( !skinPaths[ i ].match( /(\/|\\)_source\1/ ) )
-								tmpArray.push( skinPaths[ i ] );
+		if ( !errors ) {
+			skinPath = findCorrectSkinFile( workingDir );
+			if ( !skinPath ) {
+
+				// check why findCorrectSkinFile() returned false
+				var skinPaths = ckbuilder.utils.findFilesInDirectory( 'skin.js', workingDir );
+				if ( skinPaths.length > 1 ) {
+					var tmpArray = [];
+					var workingDirPath = path.resolve( workingDir );
+					for ( var i = 0; i < skinPaths.length; i++ ) {
+						skinPaths[ i ] = String( skinPaths[ i ].replace( workingDirPath, '' ) ).replace( /\\/g, '/' );
+						if ( !skinPaths[ i ].match( /(\/|\\)_source\1/ ) ) {
+							tmpArray.push( skinPaths[ i ] );
 						}
-						if ( !tmpArray.length )
-							errors += "Found more than one skin.js:\n" + skinPaths.join( "\n" ) + "\n";
-						else if ( tmpArray.length > 1 )
-							errors += "Found more than one skin.js:\n" + skinPaths.join( "\n" ) + "\n";
-					} else
-						errors += "Unable to locate skin.js";
+					}
+					if ( !tmpArray.length ) {
+						errors += "Found more than one skin.js:\n" + skinPaths.join( "\n" ) + "\n";
+					} else if ( tmpArray.length > 1 ) {
+						errors += "Found more than one skin.js:\n" + skinPaths.join( "\n" ) + "\n";
+					}
 				} else {
-					if ( options && options.skinName ) {
-						var skinName = findSkinNameInSkinDefinition( new File( skinPath ) );
-						if ( skinName && skinName !== options.skinName )
-							errors += "The skin name defined inside skin.js (" + skinName + ") does not match the expected skin name (" + options.skinName + ")" + "\n";
+					errors += "Unable to locate skin.js";
+				}
+			} else {
+				if ( options && options.skinName ) {
+					var skinName = findSkinNameInSkinDefinition( path.resolve( skinPath ) );
+					if ( skinName && skinName !== options.skinName ) {
+						errors += "The skin name defined inside skin.js (" + skinName + ") does not match the expected skin name (" + options.skinName + ")" + "\n";
 					}
 				}
 			}
+		}
 
-			if ( skinPath ) {
-				var skinFile = new File( skinPath ),
-					iconsFolder = new File( skinFile.getParentFile(), 'icons' );
-				// Skin is not obliged to provide icons
-				if ( iconsFolder.exists() && !iconsFolder.isDirectory() )
-					errors += "There is an \"icons\" file, but a folder with this name is expected." + "\n";
+		if ( skinPath ) {
+			var skinFile = path.resolve( skinPath );
+			var iconsFolder = path.join( path.dirname( skinFile ), 'icons' );
+
+			// Skin is not obliged to provide icons
+			if ( ckbuilder.io.exists( iconsFolder ) && !fs.statSync( iconsFolder ).isDirectory() ) {
+				errors += "There is an \"icons\" file, but a folder with this name is expected." + "\n";
 			}
+		}
 
+		workingDirObj.cleanUp();
+
+		if ( errors && options && options.exitOnError ) {
+			process.exit( 1 );
+		}
+
+		return errors ? errors : "OK";
+	},
+
+	/**
+	 * Builds the specified skin and saves in an optimized form in the target folder.
+	 *
+	 * @param {String} skin Path to the skin
+	 * @param {String} dstDir Path to the destination folder
+	 * @static
+	 */
+	build: function( skin, dstDir ) {
+		var time = new Date();
+		var startTime = time;
+		var skinLocation = path.resolve( dstDir );
+
+		ckbuilder.tools.prepareTargetFolder( skinLocation );
+
+		console.log( "Building skin: " + skin );
+		this.preprocess( skin, dstDir, true );
+
+		var iconsDir = path.join( skinLocation, "icons" );
+		if ( ckbuilder.io.exists( iconsDir ) ) {
+			ckbuilder.io.deleteDirectory( path.join( skinLocation, "icons" ) );
+		}
+
+		ckbuilder.utils.printUsedTime( startTime );
+	},
+
+	/**
+	 * Preprocesses the specified skin and saves in an optimized form in the target folder.
+	 *
+	 * @param {String} skin Path to the skin
+	 * @param {String} dstDir Path to the destination folder
+	 * @param {Boolean=} generateSprite Whether to generate strip image from available icons
+	 * @static
+	 */
+	preprocess: function( skin, dstDir, generateSprite ) {
+		var workingDirObj = ckbuilder.io.prepareWorkingDirectoryIfNeeded( skin );
+		var workingDir = workingDirObj.directory;
+
+		if ( !this.verify( workingDir, { exitOnError: false } ) ) {
 			workingDirObj.cleanUp();
+			throw( "The skin is invalid" );
+		}
 
-			if ( errors && options && options.exitOnError )
-				System.exit( 500 );
+		var skinPath = findCorrectSkinFile( workingDir );
+		if ( !skinPath ) {
+			workingDirObj.cleanUp();
+			throw( "The skin file (skin.js) was not found in " + path.resolve( workingDir ) );
+		}
 
-			return errors ? errors : "OK";
-		},
+		var skinFile = path.resolve( skinPath );
+		var name = findSkinNameInSkinDefinition( skinFile );
+		if ( !name ) {
+			workingDirObj.cleanUp();
+			throw( "Unable to find skin name" );
+		}
+		var targetFolder = path.resolve( dstDir );
+		var flags = {};
+		var rootFolder = path.dirname( skinFile );
+		ckbuilder.io.copy( rootFolder, targetFolder, function( sourceLocation, targetLocation ) {
+				if ( fs.statSync( sourceLocation ).isFile() ) {
+					var copied = ckbuilder.tools.fixLineEndings( sourceLocation, targetLocation );
+					if ( copied ) {
 
-		/**
-		 * Builds the specified skin and saves in an optimized form in the target folder.
-		 *
-		 * @param {String} skin Path to the skin
-		 * @param {String} dstDir Path to the destination folder
-		 * @static
-		 */
-		build: function( skin, dstDir ) {
-			var time = new Date(),
-				startTime = time,
-				skinLocation = new File( dstDir );
-
-			CKBuilder.tools.prepareTargetFolder( skinLocation );
-
-			print( "Building skin: " + skin );
-			this.preprocess( skin, dstDir, true );
-
-			var iconsDir = new File( skinLocation, "icons" );
-			if ( iconsDir.exists )
-				CKBuilder.io.deleteDirectory( File( skinLocation, "icons" ) );
-
-			CKBuilder.utils.printUsedTime( startTime );
-		},
-
-		/**
-		 * Preprocesses the specified skin and saves in an optimized form in the target folder.
-		 *
-		 * @param {String} skin Path to the skin
-		 * @param {String} dstDir Path to the destination folder
-		 * @param {Boolean=} generateSprite Whether to generate strip image from available icons
-		 * @static
-		 */
-		preprocess: function( skin, dstDir, generateSprite ) {
-			var workingDirObj = CKBuilder.io.prepareWorkingDirectoryIfNeeded( skin ),
-				workingDir = workingDirObj.directory;
-
-			if ( !this.verify( workingDir, { exitOnError: false } ) ) {
-				workingDirObj.cleanUp();
-				throw( "The skin is invalid" );
-			}
-
-			var skinPath = findCorrectSkinFile( workingDir );
-			if ( !skinPath ) {
-				workingDirObj.cleanUp();
-				throw( "The skin file (skin.js) was not found in " + workingDir.getCanonicalPath() );
-			}
-
-			var skinFile = new File( skinPath ),
-				name = findSkinNameInSkinDefinition( skinFile );
-			if ( !name ) {
-				workingDirObj.cleanUp();
-				throw( "Unable to find skin name" );
-			}
-			var targetFolder = new File( dstDir );
-
-			try {
-				targetFolder.mkdirs();
-			} catch ( e ) {
-				throw( "Unable to create target directory: " + targetFolder.getAbsolutePath() + "\nError: " + e.getMessage() );
-			}
-
-			var flags = {},
-				rootFolder = skinFile.getParentFile();
-			CKBuilder.io.copy( rootFolder, targetFolder, function( sourceLocation, targetLocation ) {
-					if ( sourceLocation.isFile() ) {
-						var copied = CKBuilder.tools.fixLineEndings( sourceLocation, targetLocation );
-						if ( copied ) {
-							// Do not process any directives
-							if ( CKBuilder.options.leaveJsUnminified )
-								return 1;
-
-							var flag = CKBuilder.tools.processDirectives( targetLocation, null, true );
-							if ( flag.LEAVE_UNMINIFIED )
-								flags[ targetLocation.getAbsolutePath() ] = flag;
-
+						// Do not process any directives
+						if ( ckbuilder.options.leaveJsUnminified ) {
 							return 1;
 						}
-					}
-					return 0;
-				}, function( targetLocation ) {
-					if ( CKBuilder.options.leaveJsUnminified )
-						return;
 
-					if ( CKBuilder.io.getExtension( targetLocation.getName() ) === 'js' ) {
-						var targetPath = targetLocation.getAbsolutePath();
-						if ( flags[ targetPath ] && flags[ targetPath ].LEAVE_UNMINIFIED ) {
-							if ( CKBuilder.options.debug > 1 )
-								print( "Leaving unminified: " + targetLocation.getPath() );
-
-							CKBuilder.io.saveFile( targetLocation, CKBuilder.tools.removeLicenseInstruction( CKBuilder.io.readFile( targetLocation ) ), true );
-							return;
+						var flag = ckbuilder.tools.processDirectives( targetLocation, null, true );
+						if ( flag.LEAVE_UNMINIFIED ) {
+							flags[ targetLocation ] = flag;
 						}
 
-						if ( CKBuilder.options.debug )
-							print( "Minifying: " + targetLocation.getPath() );
-
-						CKBuilder.javascript.minify( targetLocation );
+						return 1;
 					}
-				} );
-
-			if ( generateSprite ) {
-				var skinIcons = CKBuilder.image.findIcons( targetFolder ),
-					files = [],
-					outputFile = new File( targetFolder, "icons.png" ),
-					outputCssFile = new File( targetFolder, "editor.css" ),
-					noIcons = true,
-					buttonName;
-				// Sorted by plugin name
-				for ( buttonName in skinIcons ) {
-					files.push( new File( skinIcons[ buttonName ] ) );
-					noIcons = false;
+				}
+				return 0;
+			}, function( targetLocation ) {
+				if ( ckbuilder.options.leaveJsUnminified ) {
+					return;
 				}
 
-				if ( !noIcons )
-					CKBuilder.image.createSprite( files, outputFile, outputCssFile );
+				if ( ckbuilder.io.getExtension( path.basename( targetLocation ) ) === 'js' ) {
+					var targetPath = path.resolve( targetLocation );
+					if ( flags[ targetPath ] && flags[ targetPath ].LEAVE_UNMINIFIED ) {
+						if ( ckbuilder.options.debug > 1 ) {
+							console.log( "Leaving unminified: " + path.resolve( targetLocation ) );
+						}
 
-				// HiDPI support, set some variables again
-				skinIcons = CKBuilder.image.findIcons( targetFolder, true );
-				files = [];
-				outputFile = new File( targetFolder, "icons_hidpi.png" );
-				noIcons = true;
+						ckbuilder.io.saveFile( targetLocation, ckbuilder.tools.removeLicenseInstruction( ckbuilder.io.readFile( targetLocation ) ), true );
+						return;
+					}
 
-				// Sorted by plugin name
-				for ( buttonName in skinIcons ) {
-					files.push( new File( skinIcons[ buttonName ] ) );
-					noIcons = false;
+					if ( ckbuilder.options.debug ) {
+						console.log( "Minifying: " + targetLocation );
+					}
+
+					ckbuilder.javascript.minify( targetLocation );
 				}
+			} );
 
-				if ( !noIcons )
-					CKBuilder.image.createSprite( files, outputFile, outputCssFile, true );
+		if ( generateSprite ) {
+			var skinIcons = ckbuilder.image.findIcons( targetFolder );
+			var files = [];
+			var outputFile = path.resolve( targetFolder, "icons.png" );
+			var outputCssFile = path.resolve( targetFolder, "editor.css" );
+			var noIcons = true;
+			var buttonName;
+
+			// Sorted by plugin name
+			for ( buttonName in skinIcons ) {
+				files.push( path.resolve( skinIcons[ buttonName ] ) );
+				noIcons = false;
 			}
 
-			if ( !CKBuilder.options.leaveCssUnminified )
-				CKBuilder.css.mergeCssFiles( targetFolder );
+			if ( !noIcons ) {
+				ckbuilder.image.createSprite( files, outputFile, outputCssFile );
+			}
 
-			workingDirObj.cleanUp();
+			// HiDPI support, set some variables again
+			skinIcons = ckbuilder.image.findIcons( targetFolder, true );
+			files = [];
+			outputFile = path.resolve( targetFolder, "icons_hidpi.png" );
+			noIcons = true;
+
+			// Sorted by plugin name
+			for ( buttonName in skinIcons ) {
+				files.push( path.resolve( skinIcons[ buttonName ] ) );
+				noIcons = false;
+			}
+
+			if ( !noIcons ) {
+				ckbuilder.image.createSprite( files, outputFile, outputCssFile, true );
+			}
 		}
-	};
 
-}() );
+		if ( !ckbuilder.options.leaveCssUnminified ) {
+			ckbuilder.css.mergeCssFiles( targetFolder );
+		}
+
+		workingDirObj.cleanUp();
+	}
+};
+
+module.exports = ckbuilder.skin;

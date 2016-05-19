@@ -3,6 +3,26 @@
  For licensing, see LICENSE.md
  */
 
+"use strict";
+
+const fs = require( "fs-extra" );
+const path = require( "path" );
+const vm = require( "vm" );
+const ckbuilder = {
+	io: require( "./io" ),
+	plugin: require( "./plugin" ),
+	lang: require( "./lang" ),
+	config: require( "./config" ),
+	css: require( "./css" ),
+	image: require( "./image" ),
+	samples: require( "./samples" ),
+	javascript: require( "./javascript" ),
+	tools: require( "./tools" ),
+	utils: require( "./utils" ),
+	options: require( "./options" ),
+	error: require( "./error" )
+};
+
 /**
  * Responsible for preprocess core, generate build and generate core.
  *
@@ -10,7 +30,7 @@
  * @param {String} srcDir
  * @param {String} dstDir
  */
-CKBuilder.builder = function( srcDir, dstDir ) {
+const builder = function( srcDir, dstDir ) {
 	/**
 	 * Build configuration.
 	 *
@@ -110,37 +130,41 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 	 *
 	 * @type {java.io.File}
 	 */
-	var sourceLocation = new File( srcDir );
+	var sourceLocation = path.resolve( srcDir );
 
 	/**
 	 * Target location where the release will be built.
 	 *
 	 * @type {java.io.File}
 	 */
-	var targetLocation = new File( dstDir, 'ckeditor' );
+	var targetLocation = path.resolve( dstDir, 'ckeditor' );
 
 	/**
 	 * Checks for some required files/folders and throws an error in case of missing items.
 	 */
 	function validateSourceFolder() {
-		if ( !sourceLocation.exists() )
-			CKBuilder.error( 'Source folder does not exist: ' + srcDir );
-		if ( !sourceLocation.isDirectory() )
-			CKBuilder.error( 'Source folder is not a directory: ' + srcDir );
+		if ( !ckbuilder.io.exists( sourceLocation ) ) {
+			ckbuilder.error( 'Source folder does not exist: ' + srcDir );
+		}
+		if ( !fs.statSync( sourceLocation ).isDirectory() ) {
+			ckbuilder.error( 'Source folder is not a directory: ' + srcDir );
+		}
 		var requiredFiles = [
-			'lang/' + ( config.language || CKBuilder.DEFAULT_LANGUAGE ) + '.js',
+			'lang/' + ( config.language || process.env.DEFAULT_LANGUAGE || 'en' ) + '.js',
 			'core/loader.js',
 			'ckeditor.js',
 			'lang',
 			'plugins'
 		];
-		if ( config.skin )
+		if ( config.skin ) {
 			requiredFiles.push( 'skins/' + config.skin + '/skin.js' );
+		}
 
 		for ( var i = 0; i < requiredFiles.length; i++ ) {
-			var file = new File( sourceLocation, requiredFiles[ i ] );
-			if ( !file.exists() )
-				throw( 'The source directory is not invalid. The following file is missing: ' + file.getAbsolutePath() );
+			var file = path.resolve( sourceLocation, requiredFiles[ i ] );
+			if ( !ckbuilder.io.exists( file ) ) {
+				throw( 'The source directory is not invalid. The following file is missing: ' + file );
+			}
 		}
 	}
 
@@ -149,40 +173,44 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 	 */
 	function init() {
 		if ( config.skin ) {
-			sourceSkinFile = new File( sourceLocation, 'skins/' + ( config.skin ) + '/skin.js' );
-			targetSkinFile = new File( targetLocation, 'skins/' + ( config.skin ) + '/skin.js' );
+			sourceSkinFile = path.resolve( sourceLocation, 'skins/' + ( config.skin ) + '/skin.js' );
+			targetSkinFile = path.resolve( targetLocation, 'skins/' + ( config.skin ) + '/skin.js' );
 		}
-		languageFile = new File( targetLocation, 'lang/' + ( config.language || CKBuilder.DEFAULT_LANGUAGE ) + '.js' );
-		var loaderFile = new File( sourceLocation, 'core/loader.js' );
+		languageFile = path.resolve( targetLocation, 'lang/' + ( config.language || process.env.DEFAULT_LANGUAGE || 'en' ) + '.js' );
+		var loaderFile = path.resolve( sourceLocation, 'core/loader.js' );
 
 		/*
 		 * Execute script loader.js in core directory and read
 		 * CKEDITOR.loader.scripts property
 		 */
 		loaderScripts = ( function() {
-			var code = 'var CKEDITOR = { basePath : \'/ckeditor/\' }; ' + CKBuilder.io.readFile( loaderFile ),
-				cx = Context.enter(),
-				scope = cx.initStandardObjects();
+			var code = 'var CKEDITOR = { basePath : \'/ckeditor/\' }; ' + ckbuilder.io.readFile( loaderFile );
+			var script = new vm.Script( code, { filename: loaderFile } );
+			var scope = {};
+			vm.createContext( scope );
 
 			try {
-				cx.evaluateString( scope, code, loaderFile.getName(), 1, null );
+				script.runInContext( scope );
 				return scope.CKEDITOR.loader.scripts;
 			} catch ( e ) {
-				throw( 'Invalid JavaScript file: ' + loaderFile.getAbsolutePath() + '.\nError: ' + e.message );
+				throw( 'Invalid JavaScript file: ' + loaderFile + '.\nError: ' + e.message );
 			}
 		}() );
 
-		if ( !loaderScripts )
-			throw( 'Unable to get required scripts from loader: ' + loaderFile.getAbsolutePath() );
+		if ( !loaderScripts ) {
+			throw( 'Unable to get required scripts from loader: ' + loaderFile );
+		}
 
-		if ( CKBuilder.options.debug )
-			print( 'Reading core files from loader' );
+		if ( ckbuilder.options.debug ) {
+			console.log( 'Reading core files from loader' );
+		}
 
 		getCoreScripts( 'ckeditor' );
 		getCoreScripts( '_bootstrap' );
 
-		if ( CKBuilder.options.debug )
-			print( 'Checking plugins dependency' );
+		if ( ckbuilder.options.debug ) {
+			console.log( 'Checking plugins dependency' );
+		}
 
 		findAllRequiredPlugins( getPluginsFromBuildConfig() );
 	}
@@ -194,25 +222,29 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 	 */
 	function getCoreScripts( scriptName ) {
 		// Check if the script has already been loaded.
-		if ( scriptName === 'ckeditor_base' || scriptName in coreScripts )
+		if ( scriptName === 'ckeditor_base' || scriptName in coreScripts ) {
 			return;
+		}
 
 		// Get the script dependencies list.
 		var dependencies = loaderScripts[ scriptName ];
-		if ( !dependencies )
+		if ( !dependencies ) {
 			throw( 'The script name"' + scriptName + '" is not defined.' );
+		}
 
 		// Mark as loaded
 		coreScripts[ scriptName ] = true;
 
 		// Load all dependencies first.
-		for ( var i = 0; i < dependencies.length; i++ )
+		for ( var i = 0; i < dependencies.length; i++ ) {
 			getCoreScripts( dependencies[ i ] );
+		}
 
-		if ( CKBuilder.options.debug > 1 )
-			print( 'Found core script to load: core/' + scriptName + '.js' );
+		if ( ckbuilder.options.debug > 1 ) {
+			console.log( 'Found core script to load: core/' + scriptName + '.js' );
+		}
 
-		var file = new File( sourceLocation, 'core/' + scriptName + '.js' );
+		var file = path.resolve( sourceLocation, 'core/' + scriptName + '.js' );
 		coreScriptsSorted.push( file );
 	}
 
@@ -225,8 +257,9 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 		var plugins = [];
 
 		for ( var plugin in config.plugins ) {
-			if ( config.plugins[ plugin ] )
+			if ( config.plugins[ plugin ] ) {
 				plugins.push( plugin );
+			}
 		}
 
 		return plugins;
@@ -241,14 +274,15 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 		var pluginFile;
 
 		for ( var i = 0; i < plugins.length; i++ ) {
-			if ( plugins[ i ] in pluginNames )
+			if ( plugins[ i ] in pluginNames ) {
 				continue;
+			}
 
-			pluginFile = new File( sourceLocation, 'plugins/' + plugins[ i ] + '/plugin.js' );
-			if ( !pluginFile.exists() )
-				throw( 'Plugin does not exist: ' + plugins[ i ] + '. Unable to open: ' + pluginFile.getPath() );
-			else {
-				var required = CKBuilder.plugin.getRequiredPlugins( pluginFile );
+			pluginFile = path.resolve( sourceLocation, 'plugins/' + plugins[ i ] + '/plugin.js' );
+			if ( !ckbuilder.io.exists( pluginFile ) ) {
+				throw( 'Plugin does not exist: ' + plugins[ i ] + '. Unable to open: ' + pluginFile );
+			} else {
+				var required = ckbuilder.plugin.getRequiredPlugins( pluginFile );
 				if ( required.length ) {
 					pluginNames[ plugins[ i ] ] = false;
 					findAllRequiredPlugins( required );
@@ -257,8 +291,8 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 				// Previous call to findAllRequiredPlugins() could have added our plugin to the array.
 				if ( !( plugins[ i ] in pluginNames ) || !pluginNames[ plugins[ i ] ] ) {
 					pluginNames[ plugins[ i ] ] = true;
-					sourcePluginFilesSorted.push( File( sourceLocation, 'plugins/' + plugins[ i ] + '/plugin.js' ) );
-					targetPluginFilesSorted.push( File( targetLocation, 'plugins/' + plugins[ i ] + '/plugin.js' ) );
+					sourcePluginFilesSorted.push( path.resolve( sourceLocation, 'plugins/' + plugins[ i ] + '/plugin.js' ) );
+					targetPluginFilesSorted.push( path.resolve( targetLocation, 'plugins/' + plugins[ i ] + '/plugin.js' ) );
 					pluginNamesSorted.push( plugins[ i ] );
 				}
 			}
@@ -269,23 +303,28 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 	 * Delete unused files in the destination folder.
 	 */
 	function deleteUnusedFiles() {
-		CKBuilder.io.deleteDirectory( new File( targetLocation, 'core' ) );
+		ckbuilder.io.deleteDirectory( path.join( targetLocation, 'core' ) );
 
 		for ( var i = 0; i < targetPluginFilesSorted.length; i++ ) {
-			var empty = true,
-				parentDir = targetPluginFilesSorted[ i ].getParentFile(),
-				dirList = parentDir.list();
+			var empty = true;
+			var parentDir = path.dirname( targetPluginFilesSorted[ i ] );
+			var dirList = fs.readdirSync( parentDir );
 
 			for ( var j = 0; j < dirList.length; j++ ) {
-				if ( String( dirList[ j ] ) === 'icons' )
-					CKBuilder.io.deleteDirectory( new File( parentDir, dirList[ j ] ) ); else if ( String( dirList[ j ] ) === 'lang' )
-					CKBuilder.io.deleteDirectory( new File( parentDir, dirList[ j ] ) ); else if ( String( dirList[ j ] ) === 'plugin.js' )
-					CKBuilder.io.deleteFile( new File( parentDir, dirList[ j ] ) ); else
+				if ( String( dirList[ j ] ) === 'icons' ) {
+					ckbuilder.io.deleteDirectory( path.join( parentDir, dirList[ j ] ) );
+				} else if ( String( dirList[ j ] ) === 'lang' ) {
+					ckbuilder.io.deleteDirectory( path.join( parentDir, dirList[ j ] ) );
+				} else if ( String( dirList[ j ] ) === 'plugin.js' ) {
+					ckbuilder.io.deleteFile( path.join( parentDir, dirList[ j ] ) );
+				} else {
 					empty = false;
+				}
 			}
 
-			if ( empty )
-				CKBuilder.io.deleteDirectory( parentDir );
+			if ( empty ) {
+				ckbuilder.io.deleteDirectory( parentDir );
+			}
 		}
 	}
 
@@ -294,15 +333,17 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 	 * Executed only when skip-omitted-in-build-config is enabled.
 	 */
 	function filterPluginFolders() {
-		var pluginsFolder = new File( targetLocation, 'plugins' );
-		if ( !pluginsFolder.exists() )
+		var pluginsFolder = path.join( targetLocation, 'plugins' );
+		if ( !ckbuilder.io.exists( pluginsFolder ) ) {
 			return;
-		var dirList = pluginsFolder.list();
+		}
+		var dirList = fs.readdirSync( pluginsFolder );
 		for ( var i = 0; i < dirList.length; i++ ) {
 			if ( !pluginNames[ dirList[ i ] ] ) {
-				if ( CKBuilder.options.debug > 1 )
-					print( 'Removing unused plugin: ' + dirList[ i ] );
-				CKBuilder.io.deleteDirectory( File( pluginsFolder, dirList[ i ] ) );
+				if ( ckbuilder.options.debug > 1 ) {
+					console.log( 'Removing unused plugin: ' + dirList[ i ] );
+				}
+				ckbuilder.io.deleteDirectory( path.join( pluginsFolder, dirList[ i ] ) );
 			}
 		}
 	}
@@ -313,16 +354,18 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 	 * @param {String} selectedSkin
 	 */
 	function filterSkinsFolders( selectedSkin ) {
-		var skinsFolder = new File( targetLocation, 'skins' );
-		if ( !skinsFolder.exists() )
+		var skinsFolder = path.join( targetLocation, 'skins' );
+		if ( !ckbuilder.io.exists( skinsFolder ) ) {
 			return;
+		}
 
-		var dirList = skinsFolder.list();
+		var dirList = fs.readdirSync( skinsFolder );
 		for ( var i = 0; i < dirList.length; i++ ) {
 			if ( String( dirList[ i ] ) !== selectedSkin ) {
-				if ( CKBuilder.options.debug > 1 )
-					print( 'Removing unused skin: ' + dirList[ i ] );
-				CKBuilder.io.deleteDirectory( File( skinsFolder, dirList[ i ] ) );
+				if ( ckbuilder.options.debug > 1 ) {
+					console.log( 'Removing unused skin: ' + dirList[ i ] );
+				}
+				ckbuilder.io.deleteDirectory( path.join( skinsFolder, dirList[ i ] ) );
 			}
 		}
 	}
@@ -332,30 +375,32 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 	 * @private
 	 */
 	function buildSkins() {
-		var skinsLocation = new File( targetLocation, 'skins' ),
-			pluginsLocation = new File( sourceLocation, 'plugins' );
-
-		if ( !skinsLocation.exists() )
+		var skinsLocation = path.join( targetLocation, 'skins' );
+		var pluginsLocation = path.join( sourceLocation, 'plugins' );
+		if ( !ckbuilder.io.exists( skinsLocation ) ) {
 			return;
+		}
 
-		var dirList = skinsLocation.list();
+		var dirList = fs.readdirSync( skinsLocation );
 		for ( var i = 0; i < dirList.length; i++ ) {
-			var skinLocation = new File( skinsLocation, dirList[ i ] );
-			if ( skinLocation.isDirectory() ) {
-				if ( CKBuilder.options.debug > 1 )
-					print( 'Building skin: ' + dirList[ i ] );
+			var skinLocation = path.join( skinsLocation, dirList[ i ] );
+			if ( fs.statSync( skinLocation ).isDirectory() ) {
+				if ( ckbuilder.options.debug > 1 ) {
+					console.log( 'Building skin: ' + dirList[ i ] );
+				}
 
-				var outputFile = new File( skinLocation, 'icons.png' ),
-					outputCssFile = new File( skinLocation, 'editor.css' );
-				CKBuilder.image.createFullSprite( pluginsLocation, skinLocation, outputFile, outputCssFile, pluginNamesSorted );
+				var outputFile = path.join( skinLocation, 'icons.png' );
+				var outputCssFile = path.join( skinLocation, 'editor.css' );
+				ckbuilder.image.createFullSprite( pluginsLocation, skinLocation, outputFile, outputCssFile, pluginNamesSorted );
 
-				outputFile = new File( skinLocation, 'icons_hidpi.png' );
-				CKBuilder.image.createFullSprite( pluginsLocation, skinLocation, outputFile, outputCssFile, pluginNamesSorted, true );
+				outputFile = path.join( skinLocation, 'icons_hidpi.png' );
+				ckbuilder.image.createFullSprite( pluginsLocation, skinLocation, outputFile, outputCssFile, pluginNamesSorted, true );
 
-				CKBuilder.css.mergeCssFiles( skinLocation );
-				var iconsDir = new File( skinLocation, 'icons' );
-				if ( iconsDir.exists )
-					CKBuilder.io.deleteDirectory( File( skinLocation, 'icons' ) );
+				ckbuilder.css.mergeCssFiles( skinLocation );
+				var iconsDir = path.join( skinLocation, 'icons' );
+				if ( ckbuilder.io.exists( iconsDir ) ) {
+					ckbuilder.io.deleteDirectory( path.join( skinLocation, 'icons' ) );
+				}
 			}
 		}
 	}
@@ -370,90 +415,104 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 	 * @private
 	 */
 	function copyFiles( context ) {
-		var flags = {},
-			coreLocation = new File( sourceLocation, 'core' );
+		var flags = {};
+		var coreLocation = path.join( sourceLocation, 'core' );
 
-		CKBuilder.io.copy( sourceLocation, targetLocation, function( sourceLocation, targetLocation ) {
-				if ( CKBuilder.config.isIgnoredPath( sourceLocation, config.ignore ) )
+		ckbuilder.io.copy( sourceLocation, targetLocation, function( sourceLocation, targetLocation ) {
+				if ( ckbuilder.config.isIgnoredPath( sourceLocation, config.ignore ) ) {
 					return -1;
+				}
 
-				if ( extraCoreJavaScriptFiles && extraCoreJavaScriptFiles[ sourceLocation.getAbsolutePath() ] )
+				if ( extraCoreJavaScriptFiles && extraCoreJavaScriptFiles[ sourceLocation ] ) {
 					return -1;
+				}
 
-				if ( sourceLocation.isFile() ) {
+				if ( fs.statSync( sourceLocation ).isFile() ) {
 					if ( context === 'build' && 'languages' in config ) {
 						try {
 							// Find the "lang" folder inside plugins' folders and ignore language files that are not selected
-							if ( String( sourceLocation.getParentFile().getName() ) === 'lang' && String( sourceLocation.getParentFile().getParentFile().getParentFile().getName() ) === 'plugins' && File( sourceLocation.getParentFile().getParentFile(), 'plugin.js' ).exists() ) {
-								var fileName = String( sourceLocation.getName() ),
-									langFile = fileName.match( /^([a-z]{2}(?:-[a-z]+)?)\.js$/ );
+							if ( path.basename( path.dirname( sourceLocation ) ) === 'lang' && path.basename( path.dirname( path.dirname( path.dirname( sourceLocation ) ) ) ) === 'plugins' && ckbuilder.io.exists( path.join( path.dirname( path.dirname( sourceLocation ) ), 'plugin.js' ) ) ) {
+								var fileName = path.basename( sourceLocation.getName() );
+								var langFile = fileName.match( /^([a-z]{2}(?:-[a-z]+)?)\.js$/ );
 
 								if ( langFile ) {
 									var langCode = langFile[ 1 ];
-									if ( !config.languages[ langCode ] )
+									if ( !config.languages[ langCode ] ) {
 										return -1;
+									}
 								}
 							}
 						} catch ( e ) {
 						}
 					}
-					var copied = CKBuilder.tools.fixLineEndings( sourceLocation, targetLocation );
+					var copied = ckbuilder.tools.fixLineEndings( sourceLocation, targetLocation );
 					if ( copied ) {
-						if ( CKBuilder.options.commercial )
-							CKBuilder.tools.updateCopyrights( targetLocation );
+						if ( ckbuilder.options.commercial ) {
+							ckbuilder.tools.updateCopyrights( targetLocation );
+						}
 
-						var flag = CKBuilder.tools.processDirectives( targetLocation );
-						if ( flag.LEAVE_UNMINIFIED )
-							flags[ targetLocation.getAbsolutePath() ] = flag;
+						var flag = ckbuilder.tools.processDirectives( targetLocation );
+						if ( flag.LEAVE_UNMINIFIED ) {
+							flags[ targetLocation ] = flag;
+						}
 
 						return 1;
 					}
 				} else {
-					if ( coreLocation.getAbsolutePath().equals( sourceLocation.getAbsolutePath() ) )
+					if ( coreLocation === sourceLocation ) {
 						return -1;
+					}
 
 					// No plugins specified, special case to be able to build core only
-					if ( !pluginNamesSorted.length && String( sourceLocation.getName() ) === "plugins" )
+					if ( !pluginNamesSorted.length && path.basename( sourceLocation ) === "plugins" ) {
 						return -1;
+					}
 
 					// No skins specified, special case to be able to build core only
-					if ( typeof config.skin !== 'undefined' && !config.skin && String( sourceLocation.getName() ) === "skins" )
+					if ( typeof config.skin !== 'undefined' && !config.skin && path.basename( sourceLocation ) === "skins" ) {
 						return -1;
+					}
 
 				}
 				return 0;
 			}, function( targetLocation ) {
-				if ( CKBuilder.options.leaveJsUnminified )
+				if ( ckbuilder.options.leaveJsUnminified ) {
 					return;
+				}
 
-				if ( CKBuilder.io.getExtension( targetLocation.getName() ) === 'js' ) {
-					var targetPath = targetLocation.getAbsolutePath();
+				if ( ckbuilder.io.getExtension( path.basename( targetLocation ) ) === 'js' ) {
+					var targetPath = path.resolve( targetLocation );
 					if ( flags[ targetPath ] && flags[ targetPath ].LEAVE_UNMINIFIED ) {
-						if ( CKBuilder.options.debug > 1 )
-							print( "Leaving unminified: " + targetLocation.getPath() );
+						if ( ckbuilder.options.debug > 1 ) {
+							console.log( "Leaving unminified: " + targetLocation );
+						}
 
-						CKBuilder.io.saveFile( targetLocation, CKBuilder.tools.removeLicenseInstruction( CKBuilder.io.readFile( targetLocation ) ), true );
+						ckbuilder.io.saveFile( targetLocation, ckbuilder.tools.removeLicenseInstruction( ckbuilder.io.readFile( targetLocation ) ), true );
 						return;
 					}
 
-					if ( context === 'build' && 'languages' in config && String( targetLocation.getName() ) === 'plugin.js' ) {
+					if ( context === 'build' && 'languages' in config && path.basename( targetLocation ) === 'plugin.js' ) {
 						try {
-							if ( String( targetLocation.getParentFile().getParentFile().getName() ) === 'plugins' && File( targetLocation.getParentFile(), "lang" ).exists() ) {
-								var result = CKBuilder.plugin.updateLangProperty( targetLocation, config.languages );
+							if ( path.basename( path.dirname( path.dirname( targetLocation ) ) ) === 'plugins' && ckbuilder.io.exists( path.join( path.dirname( targetLocation ), "lang" ) ) ) {
+								var result = ckbuilder.plugin.updateLangProperty( targetLocation, config.languages );
+
 								// Something went wrong...
-								if ( result === false )
-									print( "WARNING: it was impossible to update the lang property in " + targetLocation.getAbsolutePath() );
+								if ( result === false ) {
+									console.log( "WARNING: it was impossible to update the lang property in " + targetLocation );
+								}
 							}
 						} catch ( e ) {
 						}
 					}
 
-					if ( CKBuilder.options.debug )
-						print( "Minifying: " + targetLocation.getPath() );
+					if ( ckbuilder.options.debug ) {
+						console.log( "Minifying: " + targetLocation );
+					}
 
-					CKBuilder.javascript.minify( targetLocation );
+					ckbuilder.javascript.minify( targetLocation );
 				}
-			} );
+			}
+		);
 	}
 
 	/**
@@ -464,22 +523,23 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 	 */
 	function createPluginsSpriteImage() {
 		var iconsCode = "";
-		if ( !pluginNamesSorted.length )
+		if ( !pluginNamesSorted.length ) {
 			return "";
+		}
 
-		print( "Generating plugins sprite image" );
-		var sourcePluginsLocation = new File( sourceLocation, "plugins" ),
-			targetPluginsLocation = new File( targetLocation, "plugins" );
-		if ( !targetPluginsLocation.exists() )
-			targetPluginsLocation.mkdirs();
+		console.log( "Generating plugins sprite image" );
+		var sourcePluginsLocation = path.join( sourceLocation, "plugins" );
+		var targetPluginsLocation = path.join( targetLocation, "plugins" );
+		fs.ensureDirSync( targetPluginsLocation );
 
-		var outputFile = new File( targetPluginsLocation, "icons.png" ),
-			outputFileHidpi = new File( targetPluginsLocation, "icons_hidpi.png" ),
-			iconsOffset = CKBuilder.image.createFullSprite( sourcePluginsLocation, null, outputFile, null, pluginNamesSorted ),
-			iconsOffsetHidpi = CKBuilder.image.createFullSprite( sourcePluginsLocation, null, outputFileHidpi, null, pluginNamesSorted, true );
+		var outputFile = path.join( targetPluginsLocation, "icons.png" );
+		var outputFileHidpi = path.join( targetPluginsLocation, "icons_hidpi.png" );
+		var iconsOffset = ckbuilder.image.createFullSprite( sourcePluginsLocation, null, outputFile, null, pluginNamesSorted );
+		var iconsOffsetHidpi = ckbuilder.image.createFullSprite( sourcePluginsLocation, null, outputFileHidpi, null, pluginNamesSorted, true );
 
-		if ( iconsOffset )
+		if ( iconsOffset ) {
 			iconsCode = "(function() {" + "var setIcons = function(icons, strip) {" + "var path = CKEDITOR.getUrl( 'plugins/' + strip );" + "icons = icons.split( ',' );" + "for ( var i = 0; i < icons.length; i++ )" + "CKEDITOR.skin.icons[ icons[ i ] ] = { path: path, offset: -icons[ ++i ], bgsize : icons[ ++i ] };" + "};" + "if (CKEDITOR.env.hidpi) " + "setIcons('" + iconsOffsetHidpi + "','icons_hidpi.png');" + "else " + "setIcons('" + iconsOffset + "','icons.png');" + "})();";
+		}
 
 		return iconsCode;
 	}
@@ -494,67 +554,77 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 	 * @private
 	 */
 	function createCore( config, extraCode, apply7588, context ) {
-		var ckeditorjs = "",
-			patch7588 = 'if(window.CKEDITOR&&window.CKEDITOR.dom)return;';
+		var ckeditorjs = "";
+		var patch7588 = 'if(window.CKEDITOR&&window.CKEDITOR.dom)return;';
 
-		if ( extraCoreJavaScriptCode && extraCoreJavaScriptCode.start )
+		if ( extraCoreJavaScriptCode && extraCoreJavaScriptCode.start ) {
 			ckeditorjs += extraCoreJavaScriptCode.start.join( "\n" );
+		}
 
-		ckeditorjs += CKBuilder.io.readFile( File( sourceLocation, "core/ckeditor_base.js" ) ) + "\n";
-		ckeditorjs += CKBuilder.io.readFiles( coreScriptsSorted, "\n" );
+		ckeditorjs += ckbuilder.io.readFile( path.join( sourceLocation, "core/ckeditor_base.js" ) ) + "\n";
+		ckeditorjs += ckbuilder.io.readFiles( coreScriptsSorted, "\n" );
 
-		if ( extraCoreJavaScriptCode && extraCoreJavaScriptCode.aftercore )
+		if ( extraCoreJavaScriptCode && extraCoreJavaScriptCode.aftercore ) {
 			ckeditorjs += extraCoreJavaScriptCode.aftercore.join( "\n" );
+		}
 
-		if ( sourceSkinFile )
-			ckeditorjs += CKBuilder.io.readFile( sourceSkinFile ) + "\n";
+		if ( sourceSkinFile ) {
+			ckeditorjs += ckbuilder.io.readFile( sourceSkinFile ) + "\n";
+		}
 
 		if ( pluginNamesSorted.length > 0 ) {
 			var configEntry = "CKEDITOR.config.plugins='" + pluginNamesSorted.join( "," ) + "';";
-			ckeditorjs += CKBuilder.io.readFiles( sourcePluginFilesSorted, "\n" ) + "\n" + configEntry;
+			ckeditorjs += ckbuilder.io.readFiles( sourcePluginFilesSorted, "\n" ) + "\n" + configEntry;
 		}
 		// When the core is created for the preprocessed version of CKEditor, then it makes no sense to
 		// specify an empty "config.plugins", because config.plugins will be later set by the online builder.
-		else if ( 'build' === context )
+		else if ( 'build' === context ) {
 			ckeditorjs += "CKEDITOR.config.plugins='';";
+		}
 
-		if ( config.language )
-			ckeditorjs += CKBuilder.io.readFile( languageFile ) + "\n" ;
+		if ( config.language ) {
+			ckeditorjs += ckbuilder.io.readFile( languageFile ) + "\n" ;
+		}
 
-		ckeditorjs = CKBuilder.tools.processDirectivesInString( ckeditorjs );
-		ckeditorjs = CKBuilder.tools.processCoreDirectivesInString( ckeditorjs );
-		ckeditorjs = CKBuilder.tools.removeLicenseInstruction( ckeditorjs );
+		ckeditorjs = ckbuilder.tools.processDirectivesInString( ckeditorjs );
+		ckeditorjs = ckbuilder.tools.processCoreDirectivesInString( ckeditorjs );
+		ckeditorjs = ckbuilder.tools.removeLicenseInstruction( ckeditorjs );
 
-		if ( extraCode )
+		if ( extraCode ) {
 			ckeditorjs += extraCode + "\n";
+		}
 
 		if ( 'build' === context && config.languages ) {
 			var langs = [];
 			for ( var lang in config.languages ) {
-				if ( config.languages[ lang ] )
+				if ( config.languages[ lang ] ) {
 					langs.push( '"' + lang + '":1' );
+				}
 			}
 
-			if ( langs.length )
+			if ( langs.length ) {
 				ckeditorjs += "CKEDITOR.lang.languages={" + langs.join( ',' ) + "};";
+			}
 		}
 
 		// http://dev.ckeditor.com/ticket/7588
-		if ( apply7588 )
-			ckeditorjs = CKBuilder.utils.wrapInFunction( patch7588 + ckeditorjs );
-
-		if ( extraCoreJavaScriptCode && extraCoreJavaScriptCode.end )
-			ckeditorjs += extraCoreJavaScriptCode.end.join( "" );
-
-		var targetFile = File( targetLocation, "ckeditor.js" );
-		CKBuilder.io.saveFile( targetFile, ckeditorjs, true );
-
-		if ( !CKBuilder.options.leaveJsUnminified ) {
-			print( "Minifying ckeditor.js" );
-			CKBuilder.javascript.minify( targetFile );
+		if ( apply7588 ) {
+			ckeditorjs = ckbuilder.utils.wrapInFunction( patch7588 + ckeditorjs );
 		}
-		CKBuilder.io.saveFile( targetFile, CKBuilder.utils.copyright( CKBuilder.options.leaveJsUnminified ? "\r\n" : "\n" ) + CKBuilder.io.readFile( targetFile ), true );
-		print( "Created ckeditor.js (" + parseInt( targetFile.length() / 1024, 10 ) + "KB)" );
+
+		if ( extraCoreJavaScriptCode && extraCoreJavaScriptCode.end ) {
+			ckeditorjs += extraCoreJavaScriptCode.end.join( "" );
+		}
+
+		var targetFile = path.join( targetLocation, "ckeditor.js" );
+		ckbuilder.io.saveFile( targetFile, ckeditorjs, true );
+
+		if ( !ckbuilder.options.leaveJsUnminified ) {
+			console.log( "Minifying ckeditor.js" );
+			ckbuilder.javascript.minify( targetFile );
+		}
+		ckbuilder.io.saveFile( targetFile, ckbuilder.utils.copyright( ckbuilder.options.leaveJsUnminified ? "\r\n" : "\n" ) + ckbuilder.io.readFile( targetFile ), true );
+		console.log( "Created ckeditor.js (" + parseInt( fs.statSync( targetFile ).size / 1024, 10 ) + "KB)" );
 	}
 
 	/**
@@ -564,42 +634,45 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 	 * @private
 	 */
 	function readConfig() {
-		var configPath = CKBuilder.options.buildConfig || 'build-config.js',
-			configFile = new File( configPath );
+		var configPath = ckbuilder.options.buildConfig || 'build-config.js';
+		var configFile = path.resolve( configPath );
 
-		if ( !configFile.exists() )
-			CKBuilder.error( 'The build configuration file was not found: ' + configPath + "\nRun:\n    java -jar ckbuilder.jar SRC --generate-build-config" );
-		config = CKBuilder.config.read( configFile );
+		if ( !ckbuilder.io.exists( configFile ) ) {
+			ckbuilder.error( 'The build configuration file was not found: ' + configPath + "\nRun:\n    node ckbuilder.js SRC --generate-build-config" );
+		}
+		config = ckbuilder.config.read( configFile );
 
 		if ( config.js ) {
 			extraCoreJavaScriptFiles = {};
 			extraCoreJavaScriptCode = { start: [], aftercore: [], end: [] };
 
-			var instruction,
-				regexInstruction = Pattern.compile( '^(.*),(aftercore|end|start)$', Pattern.DOTALL );
+			var instruction;
+			var regexInstruction = new RegExp( '^([\\S\\s]*),(aftercore|end|start)$', 'gm' );
 
 			for ( var i = 0; i < config.js.length; i++ ) {
-				var matcher = regexInstruction.matcher( config.js[ i ] ),
-					file,
-					filePath;
+				var matcher = regexInstruction.exec( config.js[ i ] );
+				var file;
+				var filePath;
 
-				if ( matcher.find() ) {
-					filePath = matcher.group( 1 );
-					instruction = matcher.group( 2 );
+				if ( matcher !== null ) {
+					filePath = matcher[ 1 ];
+					instruction = matcher[ 2 ];
 				} else {
 					filePath = config.js[ i ];
 					instruction = 'end';
 				}
-				file = new File( filePath );
-				if ( !file.exists() )
-					CKBuilder.error( "File not found: " + file.getAbsolutePath() + "\nCheck the build configuration file." );
+				file = path.resolve( filePath );
+				if ( !ckbuilder.io.exists( file ) ) {
+					ckbuilder.error( "File not found: " + file + "\nCheck the build configuration file." );
+				}
 
-				extraCoreJavaScriptFiles[ file.getAbsolutePath() ] = true;
+				extraCoreJavaScriptFiles[ file ] = true;
 
-				if ( CKBuilder.options.debug )
-					print( 'Adding extra file [' + instruction + ']: ' + filePath );
+				if ( ckbuilder.options.debug ) {
+					console.log( 'Adding extra file [' + instruction + ']: ' + filePath );
+				}
 
-				extraCoreJavaScriptCode[ instruction ].push( CKBuilder.io.readFile( file ) );
+				extraCoreJavaScriptCode[ instruction ].push( ckbuilder.io.readFile( file ) );
 			}
 		}
 
@@ -613,43 +686,43 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 		 * @static
 		 */
 		preprocess: function() {
-			var time = new Date(),
-				config = readConfig();
+			var time = new Date();
+			var config = readConfig();
 
 			config.plugins = {};
 			config.skin = '';
 			config.language = false;
 
 			validateSourceFolder();
-			CKBuilder.tools.prepareTargetFolder( File( dstDir ) );
+			ckbuilder.tools.prepareTargetFolder( path.resolve( dstDir ) );
 			init();
-			print( "Copying files (relax, this may take a while)" );
+			console.log( "Copying files (relax, this may take a while)" );
 			copyFiles( 'preprocess' );
-			time = CKBuilder.utils.printUsedTime( time );
+			time = ckbuilder.utils.printUsedTime( time );
 
-			print( "Merging language files" );
-			var langFolder = new File( targetLocation, 'lang' );
-			CKBuilder.lang.mergeAll( sourceLocation, langFolder, {}, config.languages );
-			time = CKBuilder.utils.printUsedTime( time );
+			console.log( "Merging language files" );
+			var langFolder = path.join( targetLocation, 'lang' );
+			ckbuilder.lang.mergeAll( sourceLocation, langFolder, {}, config.languages );
+			time = ckbuilder.utils.printUsedTime( time );
 
-			print( "Processing lang folder" );
-			var children = langFolder.list();
+			console.log( "Processing lang folder" );
+			var children = fs.readdirSync( langFolder );
 			for ( var i = 0; i < children.length; i++ ) {
 				if ( children[ i ].match( /^([a-z]{2}(?:-[a-z]+)?)\.js$/ ) ) {
-					var langFile = new File( langFolder, children[ i ] ),
-						translation = CKBuilder.lang.loadLanguageFile( langFile ).translation,
-						pseudoObject = JSON.stringify( translation ).replace( /^\{(.*)\}$/, '$1' );
+					var langFile = path.join( langFolder, children[ i ] );
+					var translation = ckbuilder.lang.loadLanguageFile( langFile ).translation;
+					var pseudoObject = JSON.stringify( translation ).replace( /^\{(.*)\}$/, '$1' );
 
-					CKBuilder.io.saveFile( langFile, pseudoObject, true );
+					ckbuilder.io.saveFile( langFile, pseudoObject, true );
 				}
 			}
 
-			print( "Building ckeditor.js" );
+			console.log( "Building ckeditor.js" );
 			createCore( config, "", false, 'preprocess' );
 
-			print( "Cleaning up target folder" );
+			console.log( "Cleaning up target folder" );
 			deleteUnusedFiles();
-			CKBuilder.utils.printUsedTime( time );
+			ckbuilder.utils.printUsedTime( time );
 		},
 
 		/**
@@ -658,20 +731,21 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 		 * @static
 		 */
 		generateCore: function() {
-			var time = new Date(),
-				config = readConfig();
+			var time = new Date();
+			var config = readConfig();
 
 			validateSourceFolder();
 			init();
 
 			config.language = false;
 			var iconsCode = createPluginsSpriteImage();
-			print( "Building ckeditor.js" );
+			console.log( "Building ckeditor.js" );
 			var extraCode = '';
-			if ( config.skin )
+			if ( config.skin ) {
 				extraCode = "CKEDITOR.config.skin='" + config.skin + "';";
+			}
 			createCore( config, extraCode + iconsCode, true, 'build' );
-			CKBuilder.utils.printUsedTime( time );
+			ckbuilder.utils.printUsedTime( time );
 		},
 
 		/**
@@ -680,74 +754,82 @@ CKBuilder.builder = function( srcDir, dstDir ) {
 		 * @static
 		 */
 		generateBuild: function() {
-			var time = new Date(),
-				startTime = time,
-				config = readConfig();
+			var time = new Date();
+			var startTime = time;
+			var config = readConfig();
 
 			validateSourceFolder();
-			CKBuilder.tools.prepareTargetFolder( File( dstDir ) );
+			ckbuilder.tools.prepareTargetFolder( path.resolve( dstDir ) );
 			init();
-			print( "Copying files (relax, this may take a while)" );
+			console.log( "Copying files (relax, this may take a while)" );
 			copyFiles( 'build' );
-			if ( !CKBuilder.options.all ) {
+			if ( !ckbuilder.options.all ) {
 				filterPluginFolders();
-				if ( config.skin )
+				if ( config.skin ) {
 					filterSkinsFolders( config.skin );
+				}
 			}
-			time = CKBuilder.utils.printUsedTime( time );
+			time = ckbuilder.utils.printUsedTime( time );
 
-			print( "Merging language files" );
-			CKBuilder.lang.mergeAll( sourceLocation, File( targetLocation, 'lang' ), pluginNames, config.languages );
-			time = CKBuilder.utils.printUsedTime( time );
+			console.log( "Merging language files" );
+			ckbuilder.lang.mergeAll( sourceLocation, path.join( targetLocation, 'lang' ), pluginNames, config.languages );
+			time = ckbuilder.utils.printUsedTime( time );
 
 			var iconsCode = createPluginsSpriteImage();
-			print( "Building ckeditor.js" );
+			console.log( "Building ckeditor.js" );
 			var extraCode = '';
-			if ( config.skin )
+			if ( config.skin ) {
 				extraCode = "CKEDITOR.config.skin='" + config.skin + "';";
+			}
 			createCore( config, extraCode + iconsCode, true, 'build' );
-			time = CKBuilder.utils.printUsedTime( time );
+			time = ckbuilder.utils.printUsedTime( time );
 
-			print( "Building skins" );
+			console.log( "Building skins" );
 			buildSkins();
-			if ( targetSkinFile )
-				CKBuilder.io.deleteFile( targetSkinFile );
-			time = CKBuilder.utils.printUsedTime( time );
+			if ( targetSkinFile ) {
+				ckbuilder.io.deleteFile( targetSkinFile );
+			}
+			time = ckbuilder.utils.printUsedTime( time );
 
-			CKBuilder.samples.mergeSamples( targetLocation );
+			ckbuilder.samples.mergeSamples( targetLocation );
 
-			print( "Cleaning up target folder" );
+			console.log( "Cleaning up target folder" );
 			deleteUnusedFiles();
-			time = CKBuilder.utils.printUsedTime( time );
+			time = ckbuilder.utils.printUsedTime( time );
 
 			// get information about release directory
-			var info = CKBuilder.io.getDirectoryInfo( targetLocation );
+			var info = ckbuilder.io.getDirectoryInfo( targetLocation );
 
-			if ( !CKBuilder.options.noZip || !CKBuilder.options.noTar )
-				print( "\nCreating compressed files...\n" );
+			if ( !ckbuilder.options.noZip || !ckbuilder.options.noTar ) {
+				console.log( "\nCreating compressed files...\n" );
+			}
 
 			var normalize = function( version ) {
 				return String( version ).toLowerCase().replace( / /g, "_" ).replace( /\(\)/g, "" );
 			};
 
-			if ( !CKBuilder.options.noZip ) {
-				var zipFile = new File( targetLocation.getParentFile(), "ckeditor_" + normalize( CKBuilder.options.version ) + ".zip" );
-				CKBuilder.io.zipDirectory( targetLocation, targetLocation, zipFile, "ckeditor" );
-				print( "    Created " + zipFile.getName() + "...: " + zipFile.length() + " bytes (" + Math.round( zipFile.length() / info.size * 100 ) + "% of original)" );
+			if ( !ckbuilder.options.noZip ) {
+				var zipFile = path.join( path.dirname( targetLocation ), "ckeditor_" + normalize( ckbuilder.options.version ) + ".zip" );
+				ckbuilder.io.zipDirectory( targetLocation, zipFile, "ckeditor" );
+				var stats = fs.statSync( zipFile );
+				console.log( "    Created " + path.basename( zipFile ) + "...: " + stats.size + " bytes (" + Math.round( stats.size / info.size * 100 ) + "% of original)" );
 			}
-			if ( !CKBuilder.options.noTar ) {
-				var tarFile = new File( targetLocation.getParentFile(), "ckeditor_" + normalize( CKBuilder.options.version ) + ".tar.gz" );
-				CKBuilder.io.targzDirectory( targetLocation, targetLocation, tarFile, "ckeditor" );
-				print( "    Created " + tarFile.getName() + ": " + tarFile.length() + " bytes (" + Math.round( tarFile.length() / info.size * 100 ) + "% of original)" );
+			if ( !ckbuilder.options.noTar ) {
+				var tarFile = path.join( path.dirname( targetLocation ), "ckeditor_" + normalize( ckbuilder.options.version ) + ".tar.gz" );
+				ckbuilder.io.targzDirectory( targetLocation, tarFile, "ckeditor" );
+				var stats = fs.statSync( tarFile );
+				console.log( "    Created " + path.basename( tarFile ) + ": " + stats.size + " bytes (" + Math.round( stats.size / info.size * 100 ) + "% of original)" );
 			}
-			CKBuilder.utils.printUsedTime( time );
+			ckbuilder.utils.printUsedTime( time );
 
-			print( "\n==========================" );
-			print( "Release process completed:\n" );
-			print( "    Number of files: " + info.files );
-			print( "    Total size.....: " + info.size + " bytes" );
-			CKBuilder.utils.printUsedTime( startTime );
-			print( "" );
+			console.log( "\n==========================" );
+			console.log( "Release process completed:\n" );
+			console.log( "    Number of files: " + info.files );
+			console.log( "    Total size.....: " + info.size + " bytes" );
+			ckbuilder.utils.printUsedTime( startTime );
+			console.log( "" );
 		}
 	};
 };
+
+module.exports = builder;
