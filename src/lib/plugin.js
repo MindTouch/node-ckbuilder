@@ -27,7 +27,7 @@ const regexLib = {
 
 	// matches both CKEDITOR.plugins.add( pluginName AND CKEDITOR.plugins.add( 'pluginName'
 	// can be used to detect where "CKEDITOR.plugins.add" is located in code
-	pluginsAdd: new RegExp( 'CKEDITOR\\.plugins\\.add\\s*\\(\\s*([\'"]?)([a-zA-Z0-9-_]+)([\'"])' ),
+	pluginsAdd: new RegExp( 'CKEDITOR\\.plugins\\.add\\s*\\(\\s*([\'"]?)([a-zA-Z0-9-_]+)([\'"]?)' ),
 
 	// matches CKEDITOR.plugins.liststyle =
 	pluginsDef: new RegExp( 'CKEDITOR\\.plugins\\.[a-z-_0-9]+\\s*=\\s*' ),
@@ -37,7 +37,7 @@ const regexLib = {
 	pluginsAddWithStringName: new RegExp( 'CKEDITOR\\.plugins\\.add\\s*\\(\\s*([\'"])([a-zA-Z0-9-_]+)([\'"])' ),
 	pluginName: new RegExp( 'var\\s+pluginName\\s*=\\s*([\'"])([a-zA-Z0-9-_]+)([\'"])' ),
 	validPluginProps: new RegExp( '(^\\s*icons\\s*:\\s*|^\\s*requires\\s*:\\s*|^\\s*lang\\s*:\\s*|^\\s*$|^\\s*//)', 'm' ),
-	blockComments: new RegExp( "/\\*[^\\r\\n]*[\\r\\n]+(.*?)[\\r\\n]+[^\\r\\n]*\\*+/", 'g' )
+	blockComments: new RegExp( "/\\*[^\\r\\n]*[\\r\\n]+([\\s\\S]*?)[\\r\\n]+[^\\r\\n]*\\*+/", 'g' )
 };
 
 /**
@@ -405,7 +405,7 @@ ckbuilder.plugin = {
 					var targetPath = path.resolve( targetLocation );
 					if ( flags[ targetPath ] && flags[ targetPath ].LEAVE_UNMINIFIED ) {
 						if ( ckbuilder.options.debug > 1 ) {
-							console.log( "Leaving unminified: " + targetLocation.getPath() );
+							console.log( "Leaving unminified: " + targetLocation );
 						}
 
 						ckbuilder.io.saveFile( targetLocation, ckbuilder.tools.removeLicenseInstruction( ckbuilder.io.readFile( targetLocation ) ), true );
