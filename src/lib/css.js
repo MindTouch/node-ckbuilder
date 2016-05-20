@@ -243,7 +243,7 @@ ckbuilder.css = {
 	 * @static
 	 */
 	mergeCssFiles: function( targetLocation ) {
-		if ( !fs.statSync( targetLocation ) ) {
+		if ( !fs.statSync( targetLocation ).isDirectory() ) {
 			throw( "CSS compression failed. The target location is not a directory: " + path.resolve( targetLocation ) );
 		}
 
