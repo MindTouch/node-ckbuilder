@@ -167,7 +167,7 @@ ckbuilder.utils = {
 			if ( fs.statSync( f ).isDirectory() ) {
 				const tmp = ckbuilder.utils.findFilesInDirectory( filename, f );
 				if ( tmp ) {
-					files.concat( tmp );
+					files = files.concat( tmp );
 				}
 			}
 			else if ( file === filename ) {
