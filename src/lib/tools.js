@@ -16,7 +16,7 @@ const ckbuilder = {
 
 const regexLib = {
 	eol: new RegExp( '(?:\\x09|\\x20)+$', 'gm' ),
-	eof: new RegExp( '(?:\\x09|\\x20|\\r|\\n)+$', 'gm' ),
+	eof: new RegExp( '(?:\\x09|\\x20|\\r|\\n)+$' ),
 	remove: new RegExp( '^.*?%REMOVE_START%[\\s\\S]*?%REMOVE_END%.*?$', 'gm' ),
 	removeCore: new RegExp( '^.*?%REMOVE_START_CORE%[\\s\\S]*?%REMOVE_END_CORE%.*?$', 'gm' ),
 	removeLine: new RegExp( '.*%REMOVE_LINE%.*(?:\\r\\n|\\r|\\n)?', 'g' ),
@@ -85,7 +85,7 @@ ckbuilder.tools = {
 
 		let buffer = [];
 		let firstLine = true;
-		fs.readFileSync( sourceFile ).toString().split( /\n|(?:\r\n)/ ).forEach( ( line ) => {
+		fs.readFileSync( sourceFile ).toString().split( /\r\n|\r|\n/ ).forEach( ( line ) => {
 			if ( firstLine ) {
 				const hasBom = line.length && line.charCodeAt( 0 ) === 65279;
 				if ( !hasBom && extension in bomExtensions ) {
@@ -100,13 +100,10 @@ ckbuilder.tools = {
 			// Strip whitespace characters
 			line = line.replace( regexLib.eol, "" );
 			buffer.push( line );
-
-			// (karena, 2016-05-18) Original CKBuilder uses lineEndings array to set eol and eof (see below)
-			// but it causes issues in nodejs version
-			buffer.push( "\n" );
+			buffer.push( lineEndings[ extension ] );
 		} );
 
-		ckbuilder.io.saveFile( targetFile, buffer.join( "" ).replace( regexLib.eof, "\n" ) );
+		ckbuilder.io.saveFile( targetFile, buffer.join( "" ).replace( regexLib.eof, lineEndings[ extension ] ) );
 
 		return true;
 	},
@@ -237,38 +234,7 @@ ckbuilder.tools = {
 	 * @static
 	 */
 	validateJavaScriptFile: function( sourceLocation ) {
-		const messages = linter.verify( ckbuilder.io.readFile( sourceLocation ), {
-			env: { browser: true },
-			globals: {
-				"CKEDITOR": false,
-				"assert": false,
-				"arrayAssert": false,
-				"bender": false,
-				"JSON": false,
-				"objectAssert": false,
-				"resume": false,
-				"sinon": false,
-				"wait": false,
-				"YUITest": false
-			},
-			rules: {
-				"wrap-iife": [ 2, "any" ],
-				"no-use-before-define": 2,
-				"no-irregular-whitespace": 2,
-				"no-undef": 2,
-				"no-unused-vars": 2,
-				"new-cap": 0,
-				"no-empty": 0,
-				"strict": [ 2, "global" ],
-				"no-cond-assign": [ 2, "except-parens" ],
-				"no-eq-null": 2,
-				"no-eval": 2,
-				"no-unused-expressions": 2,
-				"block-scoped-var": 2,
-				"no-loop-func": 2,
-				"no-invalid-this": 2
-			}
-		}, { filename: sourceLocation });
+		const messages = linter.verify( ckbuilder.io.readFile( sourceLocation ), {}, { filename: sourceLocation } );
 		let result = [];
 		if ( messages.length ) {
 			for ( let i = 0; i < messages.length; i++ ) {
