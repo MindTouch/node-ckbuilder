@@ -432,7 +432,7 @@ const builder = function( srcDir, dstDir ) {
 						try {
 							// Find the "lang" folder inside plugins' folders and ignore language files that are not selected
 							if ( path.basename( path.dirname( sourceLocation ) ) === 'lang' && path.basename( path.dirname( path.dirname( path.dirname( sourceLocation ) ) ) ) === 'plugins' && ckbuilder.io.exists( path.join( path.dirname( path.dirname( sourceLocation ) ), 'plugin.js' ) ) ) {
-								var fileName = path.basename( sourceLocation.getName() );
+								var fileName = path.basename( sourceLocation );
 								var langFile = fileName.match( /^([a-z]{2}(?:-[a-z]+)?)\.js$/ );
 
 								if ( langFile ) {
