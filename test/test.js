@@ -3,696 +3,720 @@
  For licensing, see LICENSE.md
  */
 
-var CKBuilderTest = true;
-load( "src/ckbuilder.js" );
-CKBuilder.options.debug = 2;
+const ckbuilder = require( '../src/ckbuilder' );
+ckbuilder.options.debug = 2;
 
-( function()
+const fs = require( 'fs-extra' );
+const path = require( 'path' );
+const md5 = require( 'js-md5' );
+const Canvas = require( "canvas" );
+const Image = Canvas.Image;
+
+// Run tests.
+var passCount = 0;
+var failCount = 0;
+var assetsPath = './test/_assets';
+var assetsDir = path.resolve( assetsPath );
+var tempPath = './test/tmp';
+var tempDir = path.resolve( tempPath );
+var timestampStub = 'G3KH';
+
+function isArray(o) {
+	return Object.prototype.toString.call(o) === '[object Array]';
+}
+
+function assertDirectoriesAreEqual( expected, actual, title )
 {
-	// Run tests.
-	var passCount = 0, failCount = 0;
-	var assetsPath = 'test/_assets';
-	var assetsDir = new File( assetsPath );
-	var tempPath = 'test/tmp';
-	var tempDir = new File( tempPath );
-	var timestampStub = 'G3KH';
+	var dirList = fs.readdirSync( expected );
+	var actualFile;
+	var expectedFile;
 
-	function isArray(o) {
-		return Object.prototype.toString.call(o) === '[object Array]';
-	}
-
-	function assertDirectoriesAreEqual( expected, actual, title )
+	for ( var i = 0 ; i < dirList.length ; i++ )
 	{
-		var dirList = expected.list(), actualFile, expectedFile;
-
-		for ( var i = 0 ; i < dirList.length ; i++ )
+		actualFile = path.resolve( actual, dirList[i] );
+		expectedFile = path.resolve( expected, dirList[i] );
+		assertEquals( true, ckbuilder.io.exists( actualFile ), '[' + title + '] file should exist: ' + actualFile );
+		assertEquals( fs.statSync( expectedFile ).isDirectory(), fs.statSync( actualFile ).isDirectory(), '[' + title + '] files should be of the same type: ' + actualFile );
+		if ( ckbuilder.io.exists( actualFile ) )
 		{
-			actualFile = new File( actual, dirList[i] );
-			expectedFile = new File( expected, dirList[i] );
-			assertEquals( true, actualFile.exists(), '[' + title + '] file should exist: ' + actualFile.getPath() );
-			assertEquals( expectedFile.isDirectory(), actualFile.isDirectory(), '[' + title + '] files should be of the same type: ' + actualFile.getPath() );
-			if ( actualFile.exists() )
-			{
-				if ( actualFile.isDirectory() )
-					assertDirectoriesAreEqual( expectedFile, actualFile, title );
-				else
-					assertFilesAreEqual( expectedFile, actualFile, title );
-			}
-		}
-
-		dirList = actual.list();
-
-		// Check for files that should not exists
-		for ( var i = 0 ; i < dirList.length ; i++ )
-		{
-			actualFile = new File( actual, dirList[i] );
-			expectedFile = new File( expected, dirList[i] );
-			if ( !expectedFile.exists() )
-				assertEquals( false, actualFile.exists(), '[' + title + '] file should not exist: ' + actualFile.getPath() );
+			if ( fs.statSync( actualFile ).isDirectory() )
+				assertDirectoriesAreEqual( expectedFile, actualFile, title );
+			else
+				assertFilesAreEqual( expectedFile, actualFile, title );
 		}
 	}
 
-	function assertFilesAreEqual( expected, actual, title )
+	dirList = fs.readdirSync( actual );
+
+	// Check for files that should not exists
+	for ( var i = 0 ; i < dirList.length ; i++ )
 	{
-		assertEquals( String( md5( CKBuilder.io.readFile( expected ) ) ), String( md5( CKBuilder.io.readFile( actual ) ) ),
-			'[' + title + '] Checking MD5 of ' + actual.getPath());
+		actualFile = path.resolve( actual, dirList[i] );
+		expectedFile = path.resolve( expected, dirList[i] );
+		if ( !ckbuilder.io.exists( expectedFile ) )
+			assertEquals( false, ckbuilder.io.exists( actualFile ), '[' + title + '] file should not exist: ' + actualFile );
 	}
+}
 
-	function assertEquals( expected, actual, title )
+function assertFilesAreEqual( expected, actual, title )
+{
+	assertEquals( String( md5( ckbuilder.io.readFile( expected ) ) ), String( md5( ckbuilder.io.readFile( actual ) ) ),
+		'[' + title + '] Checking MD5 of ' + actual);
+}
+
+function assertEquals( expected, actual, title )
+{
+	if ( ( !isArray( expected ) && expected !== actual) || JSON.stringify( expected ) !== JSON.stringify( actual ) )
 	{
-		if ( ( !isArray( expected ) && expected !== actual) || JSON.stringify( expected ) !== JSON.stringify( actual ) )
-		{
-			var error = {
-				expected : expected,
-				actual : actual
-			};
+		var error = {
+			expected : expected,
+			actual : actual
+		};
 
-			print( 'FAILED: ' + (title ? title : "") );
+		console.error( new Error( 'FAILED: ' + (title ? title : "") ) );
 
 //			if ( !error.expected )
 //				throw error;
 
-			print( '  Expected: ' + error.expected );
-			print( '  Actual  : ' + error.actual );
+		console.error( new Error( '  Expected: ' + error.expected ) );
+		console.error( new Error( '  Actual  : ' + error.actual ) );
 
-			failCount++;
-		}
-		else
-			passCount++;
+		failCount++;
 	}
+	else
+		passCount++;
+}
 
-	function md5( s )
-	{
-		s = new java.lang.String( s );
-		var m = java.security.MessageDigest.getInstance( "MD5" );
-		m.update( s.getBytes("UTF-8"), 0, s.length() );
-		return new java.math.BigInteger( 1, m.digest() ).toString( 16 );
-	}
+function error( msg )
+{
+	console.error( new Error( msg ) );
+	process.exit( 1 );
+}
 
-	function error( msg )
+function prepareTempDirs()
+{
+	if ( ckbuilder.io.exists( tempDir ) )
 	{
-		print( msg );
-		quit();
-	}
-
-	function prepareTempDirs()
-	{
-		if ( tempDir.exists() && !CKBuilder.io.deleteDirectory( tempPath ) )
+		try
+		{
+			ckbuilder.io.deleteDirectory( tempDir );
+		} catch ( e )
+		{
 			error( "Can't delete temp directory" );
-
-		if ( !tempDir.mkdir() )
-			error( "Can't create temp directory: " + tempDir );
-
-		var assetsDirList = assetsDir.list();
-		for ( var i = 0; i < assetsDirList.length; i++ )
-		{
-			var f = new File( tempDir, assetsDirList[i] );
-			if ( !f.mkdir() )
-				error( "Can't create temp directory: " + f );
 		}
 	}
 
-	function testLanguageFiles()
+	try
 	{
-		print( "\nTesting processing language files\n" );
-		var dir = new File( assetsDir, 'langfiles' );
-		var dirList = dir.list();
-		var pluginNames = { devtools : 1, placeholder : 1, uicolor : 1 };
-		var languages = { en : 1, he : 1, pl : 1 };
-
-		CKBuilder.lang.mergeAll( new File( assetsDir, 'langfiles' ), new File( tempDir, 'langfiles' ), pluginNames, languages );
-
-		for ( var i = 0; i < dirList.length; i++ )
-		{
-			if ( dirList[i].indexOf( ".correct" ) === -1 )
-				continue;
-
-			var correctFile = new File( dir, dirList[i] );
-			var testName = correctFile.getName().replace( ".correct", "" );
-			var tempFile = new File( tempDir + '/langfiles/' + testName );
-
-			assertEquals( CKBuilder.io.readFile( correctFile ), CKBuilder.io.readFile( tempFile ), 'Language file: ' + testName );
-		}
-		var french = new File( tempDir + '/langfiles/fr.js' );
-		assertEquals( french.exists(), false );
+		fs.mkdirSync( tempDir );
+	} catch ( e )
+	{
+		error( "Can't create temp directory: " + tempDir );
 	}
 
-	function testCssProcessor( testFolder, leaveCssUnminified )
+	var assetsDirList = fs.readdirSync( assetsDir );
+	for ( var i = 0; i < assetsDirList.length; i++ )
 	{
-		print( "\nTesting CSS processor\n" );
-		var correctFile, dir, dirList, test, tempFile;
-
-		CKBuilder.options.leaveCssUnminified = leaveCssUnminified;
-		CKBuilder.io.copy( new File( assetsDir + testFolder ), new File( tempDir + testFolder ) );
-		CKBuilder.css.mergeCssFiles( new File( tempDir + testFolder ) );
-
-		var sourceDir = new File( assetsDir + testFolder );
-		var sourceDirList = sourceDir.list();
-
-		for ( var i = 0 ; i < sourceDirList.length ; i++ )
+		var f = path.resolve( tempDir, assetsDirList[i] );
+		try
 		{
-			if ( String( sourceDirList[i] ) === ".svn" || String( sourceDirList[i] ) === ".git" )
-				continue;
+			fs.mkdirSync( f );
+		} catch ( e )
+		{
+			error( "Can't create temp directory: " + f );
+		}
+	}
+}
 
-			dir = new File(  tempDir + testFolder, sourceDirList[i] );
-			assertEquals( true, dir.exists(), dir + " exists?" );
+function testLanguageFiles()
+{
+	console.log( "\nTesting processing language files\n" );
+	var dir = path.resolve( assetsDir, 'langfiles' );
+	var dirList = fs.readdirSync( dir );
+	var pluginNames = { devtools : 1, placeholder : 1, uicolor : 1 };
+	var languages = { en : 1, he : 1, pl : 1 };
 
-			dirList = dir.list();
-			assertEquals( true, dirList.length > 0, dir + " not empty?" );
+	ckbuilder.lang.mergeAll( path.resolve( assetsDir, 'langfiles' ), path.resolve( tempDir, 'langfiles' ), pluginNames, languages );
 
-			var foundCorrect = 0;
-			var foundCss = 0;
-			/**
-			 * Loop through files in the target directory and search for valid
-			 * CSS files
-			 */
-			for ( var j = 0 ; j < dirList.length ; j++ )
+	for ( var i = 0; i < dirList.length; i++ )
+	{
+		if ( dirList[i].indexOf( ".correct" ) === -1 )
+			continue;
+
+		var correctFile = path.resolve( dir, dirList[i] );
+		var testName = path.basename( correctFile ).replace( ".correct", "" );
+		var tempFile = path.resolve( tempDir + '/langfiles/' + testName );
+
+		assertEquals( ckbuilder.io.readFile( correctFile ), ckbuilder.io.readFile( tempFile ), 'Language file: ' + testName );
+	}
+	var french = path.resolve( tempDir + '/langfiles/fr.js' );
+	assertEquals( ckbuilder.io.exists( french ), false );
+}
+
+function testCssProcessor( testFolder, leaveCssUnminified )
+{
+	console.log( "\nTesting CSS processor\n" );
+	var correctFile, dir, dirList, test, tempFile;
+
+	ckbuilder.options.leaveCssUnminified = leaveCssUnminified;
+	ckbuilder.io.copy( path.resolve( assetsDir + testFolder ), path.resolve( tempDir + testFolder ) );
+	ckbuilder.css.mergeCssFiles( path.resolve( tempDir + testFolder ) );
+
+	var sourceDir = path.resolve( assetsDir + testFolder );
+	var sourceDirList = fs.readdirSync( sourceDir );
+
+	for ( var i = 0 ; i < sourceDirList.length ; i++ )
+	{
+		if ( String( sourceDirList[i] ) === ".svn" || String( sourceDirList[i] ) === ".git" )
+			continue;
+
+		dir = path.resolve( tempDir + testFolder, sourceDirList[i] );
+		assertEquals( true, ckbuilder.io.exists( dir ), dir + " exists?" );
+
+		dirList = fs.readdirSync( dir );
+		assertEquals( true, dirList.length > 0, dir + " not empty?" );
+
+		var foundCorrect = 0;
+		var foundCss = 0;
+		/**
+		 * Loop through files in the target directory and search for valid
+		 * CSS files
+		 */
+		for ( var j = 0 ; j < dirList.length ; j++ )
+		{
+			if ( dirList[j].indexOf( ".css" ) !== -1 )
+				foundCss++;
+
+			if ( dirList[j].indexOf( "correct.txt" ) !== -1 )
 			{
-				if ( dirList[j].indexOf( ".css" ) !== -1 )
-					foundCss++;
+				foundCorrect++;
+				test = dirList[j].replace( ".correct.txt", "" );
 
-				if ( dirList[j].indexOf( "correct.txt" ) !== -1 )
-				{
-					foundCorrect++;
-					test = dirList[j].replace( ".correct.txt", "" );
+				correctFile = path.resolve( dir, dirList[j] );
+				tempFile = path.resolve( dir, test + '.css' );
 
-					correctFile = new File( dir, dirList[j] );
-					tempFile = new File( dir, test + '.css' );
+				assertEquals( true, ckbuilder.io.exists( tempFile ), tempFile + " exists?" );
 
-					assertEquals( true, tempFile.exists(), tempFile + " exists?" );
-
-					assertEquals( String( md5( CKBuilder.io.readFile( correctFile ) ) ), String( md5( CKBuilder.io.readFile( tempFile ) ) ),
-						'Checking md5 of created file [' + dir.getName() + "/" + test + '.css]' );
-				}
+				assertEquals( String( md5( ckbuilder.io.readFile( correctFile ) ) ), String( md5( ckbuilder.io.readFile( tempFile ) ) ),
+					'Checking md5 of created file [' + path.basename( dir ) + "/" + test + '.css]' );
 			}
-			if ( foundCorrect )
-				assertEquals( foundCorrect, foundCss, 'The number of created and correct css files must be equal in skin ' + dir.getName() );
 		}
+		if ( foundCorrect )
+			assertEquals( foundCorrect, foundCss, 'The number of created and correct css files must be equal in skin ' + path.basename( dir ) );
+	}
+}
+
+function testSprite()
+{
+	var plugins = ['basicstyles', 'link', 'list', 'table'];
+	var pluginsLocation = path.join( assetsDir, "/sprite/plugins" );
+	var skinLocation = path.join( assetsDir, "/sprite/skins/v2" );
+
+	// 1. Unminified CSS, use only specified plugins
+	ckbuilder.options.all = false;
+	ckbuilder.options.leaveCssUnminified = true;
+
+	var imageFile = path.resolve( tempPath + "/sprite/icons.png" );
+	var cssFile = path.resolve( tempPath + "/sprite/icons.css" );
+	var originalTimestamp = ckbuilder.options.timestamp;
+
+	ckbuilder.options.timestamp = timestampStub;
+
+	try {
+		ckbuilder.image.createFullSprite( pluginsLocation, skinLocation, imageFile, cssFile, plugins );
+	} catch ( e ) {
+		// In any case restore timestamp.
+		ckbuilder.options.timestamp = originalTimestamp;
+		// And rethrow the exception.
+		throw e;
 	}
 
-	function testSprite()
-	{
-		var plugins = ['basicstyles', 'link', 'list', 'table'];
-		var pluginsLocation = new File( assetsDir, "/sprite/plugins" );
-		var skinLocation = new File( assetsDir, "/sprite/skins/v2" );
+	assertEquals( ckbuilder.io.readFile( path.join( assetsDir, "/sprite/icons.correct.css" ) ), ckbuilder.io.readFile( cssFile ),
+		'Checking content of icons.css' );
+	assertEquals( ckbuilder.io.exists( imageFile ), true, "Sprite image should exist." );
 
-		// 1. Unminified CSS, use only specified plugins
-		CKBuilder.options.all = false;
-		CKBuilder.options.leaveCssUnminified = true;
-
-		var imageFile = new File( tempPath + "/sprite/icons.png" );
-		var cssFile = new File( tempPath + "/sprite/icons.css" );
-		var originalTimestamp = CKBuilder.options.timestamp;
-
-		CKBuilder.options.timestamp = timestampStub;
-
-		try {
-			CKBuilder.image.createFullSprite( pluginsLocation, skinLocation, imageFile, cssFile, plugins );
-		} catch ( e ) {
-			// In any case restore timestamp.
-			CKBuilder.options.timestamp = originalTimestamp;
-			// And rethrow the exception.
-			throw e;
-		}
-
-		assertEquals( CKBuilder.io.readFile( new File( assetsDir, "/sprite/icons.correct.css" ) ), CKBuilder.io.readFile( cssFile ),
-			'Checking content of icons.css' );
-		assertEquals( imageFile.exists(), true, "Sprite image should exist." );
-
-		var image = ImageIO.read( imageFile );
-		// 14 icons x (21px + 8px)
- 		// 21 pixels - biggest single icon height
-		// 8 pixels - a distance in a non-hidpi strip
-		assertEquals( 14 * (21 + 8), image.getHeight(), "Checking height of sprite image." );
-		assertEquals( 21, image.getWidth(), "Checking width of sprite image." );
-
-
-		// 2. Minified CSS, include icons for all plugins (also the maximize plugin)
-		CKBuilder.options.all = true;
-		CKBuilder.options.leaveCssUnminified = false;
-
-		imageFile = new File( tempPath + "/sprite/icons2.png" );
-		cssFile = new File( tempPath + "/sprite/icons2.css" );
-
-		CKBuilder.image.createFullSprite( pluginsLocation, skinLocation, imageFile, cssFile, plugins );
-
-		assertEquals( CKBuilder.io.readFile( new File( assetsDir, "/sprite/icons2.correct.css" ) ), CKBuilder.io.readFile( cssFile ),
-			'Checking content of icons2.css' );
-		assertEquals( imageFile.exists(), true, "Sprite image should exist." );
-
-		var image = ImageIO.read( imageFile );
-		// 15 icons x (21px + 8px)
+	var bufferedImage = fs.readFileSync( imageFile );
+	var image = new Image;
+	image.src = bufferedImage;
+	// 14 icons x (21px + 8px)
 		// 21 pixels - biggest single icon height
-		// 8 pixels - a distance in a non-hidpi strip
-		assertEquals( 15 * (21 + 8), image.getHeight(), "Checking height of sprite image." );
-		assertEquals( 21, image.getWidth(), "Checking width of sprite image." );
+	// 8 pixels - a distance in a non-hidpi strip
+	assertEquals( 14 * (21 + 8), image.height, "Checking height of sprite image." );
+	assertEquals( 21, image.width, "Checking width of sprite image." );
 
-		// 3. Unminified CSS, use only specified plugins, hidpi
-		CKBuilder.options.all = false;
-		CKBuilder.options.leaveCssUnminified = true;
-		var skinLocation = new File( assetsDir, "/sprite/skins/sapphire" );
 
-		var imageFile = new File( tempPath + "/sprite/icons3.png" );
-		var cssFile = new File( tempPath + "/sprite/icons3.css" );
+	// 2. Minified CSS, include icons for all plugins (also the maximize plugin)
+	ckbuilder.options.all = true;
+	ckbuilder.options.leaveCssUnminified = false;
 
-		CKBuilder.options.timestamp = timestampStub;
-		try {
-			CKBuilder.image.createFullSprite( pluginsLocation, skinLocation, imageFile, cssFile, plugins, true );
-		} catch ( e ) {
-			CKBuilder.options.timestamp = originalTimestamp;
-			throw e;
-		}
+	imageFile = path.resolve( tempPath + "/sprite/icons2.png" );
+	cssFile = path.resolve( tempPath + "/sprite/icons2.css" );
 
-		assertEquals( CKBuilder.io.readFile( new File( assetsDir, "/sprite/icons3.correct.css" ) ), CKBuilder.io.readFile( cssFile ),
-			'Checking content of icons3.css' );
-		assertEquals( imageFile.exists(), true, "Sprite image should exist." );
+	ckbuilder.image.createFullSprite( pluginsLocation, skinLocation, imageFile, cssFile, plugins );
 
-		var image = ImageIO.read( imageFile );
-		// 14 icons x (32px + 16px)
-		// 32 pixels - biggest single icon height
-		// 16 pixels - a distance in a hidpi strip
-		assertEquals( 14 * ( 32 + 16 ), image.getHeight(), "Checking height of sprite image." );
-		assertEquals( 32, image.getWidth(), "Checking width of sprite image." );
+	assertEquals( ckbuilder.io.readFile( path.join( assetsDir, "/sprite/icons2.correct.css" ) ), ckbuilder.io.readFile( cssFile ),
+		'Checking content of icons2.css' );
+	assertEquals( ckbuilder.io.exists( imageFile ), true, "Sprite image should exist." );
+
+	var bufferedImage = fs.readFileSync( imageFile );
+	var image = new Image;
+	image.src = bufferedImage;
+	// 15 icons x (21px + 8px)
+	// 21 pixels - biggest single icon height
+	// 8 pixels - a distance in a non-hidpi strip
+	assertEquals( 15 * (21 + 8), image.height, "Checking height of sprite image." );
+	assertEquals( 21, image.width, "Checking width of sprite image." );
+
+	// 3. Unminified CSS, use only specified plugins, hidpi
+	ckbuilder.options.all = false;
+	ckbuilder.options.leaveCssUnminified = true;
+	var skinLocation = path.join( assetsDir, "/sprite/skins/sapphire" );
+
+	var imageFile = path.resolve( tempPath + "/sprite/icons3.png" );
+	var cssFile = path.resolve( tempPath + "/sprite/icons3.css" );
+
+	ckbuilder.options.timestamp = timestampStub;
+	try {
+		ckbuilder.image.createFullSprite( pluginsLocation, skinLocation, imageFile, cssFile, plugins, true );
+	} catch ( e ) {
+		ckbuilder.options.timestamp = originalTimestamp;
+		throw e;
 	}
 
-	function testDirectives()
+	assertEquals( ckbuilder.io.readFile( path.join( assetsDir, "/sprite/icons3.correct.css" ) ), ckbuilder.io.readFile( cssFile ),
+		'Checking content of icons3.css' );
+	assertEquals( ckbuilder.io.exists( imageFile ), true, "Sprite image should exist." );
+
+	var bufferedImage = fs.readFileSync( imageFile );
+	var image = new Image;
+	image.src = bufferedImage;
+	// 14 icons x (32px + 16px)
+	// 32 pixels - biggest single icon height
+	// 16 pixels - a distance in a hidpi strip
+	assertEquals( 14 * ( 32 + 16 ), image.height, "Checking height of sprite image." );
+	assertEquals( 32, image.width, "Checking width of sprite image." );
+}
+
+function testDirectives()
+{
+	console.log( "\nTesting directives\n" );
+
+	var name = 'directives';
+	var testName, tempFile, correctFile, sampleFile;
+
+	var dir = path.resolve( assetsDir, 'directives' );
+	var dirList = fs.readdirSync( dir );
+
+	for ( var i = 0 ; i < dirList.length ; i++ )
 	{
-		print( "\nTesting directives\n" );
+		if ( dirList[i].indexOf( ".correct." ) === -1 )
+			continue;
 
-		var name = 'directives';
-		var testName, tempFile, correctFile, sampleFile;
+		testName = dirList[i].replace( ".correct.txt", "" );
 
-		var dir = new File( assetsDir, 'directives' );
-		var dirList = dir.list();
+		sampleFile = path.resolve( dir, testName + '.txt' );
+		correctFile = path.resolve( dir, testName + '.correct.txt' );
+		tempFile = path.resolve( tempDir, name + '/' + testName + '.out.txt' );
 
-		for ( var i = 0 ; i < dirList.length ; i++ )
+		ckbuilder.io.copy( sampleFile, tempFile );
+		ckbuilder.tools.processDirectives( tempFile, { version: '3.1beta', revisionNumber : '1234', timestamp : 'AB89' } );
+
+		assertEquals( ckbuilder.io.readFile( correctFile ), ckbuilder.io.readFile( tempFile ),
+			'releaser.directives[' + testName + ']' );
+	}
+}
+
+function testBom()
+{
+	var file, extension, stats;
+	var dir = path.resolve( tempDir, 'bom' );
+
+	ckbuilder.io.copy( path.resolve( assetsDir, 'bom' ), dir, function( sourceLocation, targetLocation ) {
+		if ( !fs.statSync( sourceLocation ).isDirectory() )
+			return ckbuilder.tools.fixLineEndings( sourceLocation, targetLocation ) ? 1 : 0;
+	} );
+
+	var children = fs.readdirSync( dir );
+	for ( var i = 0 ; i < children.length ; i++ )
+	{
+		file = path.resolve( dir, children[i] );
+
+		extension = ckbuilder.io.getExtension( path.basename( file ) );
+
+		stats = fs.statSync( file );
+
+		switch ( extension )
 		{
-			if ( dirList[i].indexOf( ".correct." ) === -1 )
-				continue;
+			case "asp":
+			case "js":
+				// BOM + CRLF
+				assertEquals( 8, stats.size, "testing BOM: " + children[i] );
+				break;
 
-			testName = dirList[i].replace( ".correct.txt", "" );
+			case "sh":
+				// !BOM + LF
+				assertEquals( 4, stats.size, "testing BOM: " + children[i] );
+				break;
 
-			sampleFile = new File( dir, testName + '.txt' );
-			correctFile = new File( dir, testName + '.correct.txt' );
-			tempFile = new File( tempDir, name + '/' + testName + '.out.txt' );
-
-			CKBuilder.io.copy( sampleFile, tempFile );
-			CKBuilder.tools.processDirectives( tempFile, { version: '3.1beta', revisionNumber : '1234', timestamp : 'AB89' } );
-
-			assertEquals( CKBuilder.io.readFile( correctFile ), CKBuilder.io.readFile( tempFile ),
-				'releaser.directives[' + testName + ']' );
+			default:
+				// !BOM + CRLF
+				assertEquals( 5, stats.size, "testing BOM: " + children[i] );
+				break;
 		}
 	}
+}
 
-	function testBom()
+function testLineEndings()
+{
+	console.log( "\nTesting line endings\n" );
+	var testName, tempFile, correctFile, sampleFile;
+	var name = "lineendings";
+	var dir = path.resolve( assetsDir, 'lineendings' );
+	var dirList = fs.readdirSync( dir );
+
+	for ( var i = 0 ; i < dirList.length ; i++ )
 	{
-		var file, extension;
-		var dir = new File( tempDir, 'bom' );
+		if ( dirList[i].indexOf( ".correct." ) === -1 )
+			continue;
 
-		CKBuilder.io.copy( new File( assetsDir, 'bom' ), dir, function( sourceLocation, targetLocation ) {
-			if ( !sourceLocation.isDirectory() )
-				return CKBuilder.tools.fixLineEndings( sourceLocation, targetLocation ) ? 1 : 0;
-		} );
+		testName = dirList[i].replace( ".correct", "" );
 
-		var children = dir.list();
-		for ( var i = 0 ; i < children.length ; i++ )
-		{
-			file = new File( dir, children[i] );
+		sampleFile = path.resolve( assetsDir, name + '/' + testName );
+		correctFile = path.resolve( assetsDir, name + '/' + dirList[i] );
+		tempFile = path.resolve( tempDir, name + '/' + testName );
 
-			extension = CKBuilder.io.getExtension( file.getName() );
+		ckbuilder.tools.fixLineEndings( sampleFile, tempFile );
 
-			switch ( extension )
-			{
-				case "asp":
-				case "js":
-					// BOM + CRLF
-					assertEquals( 8, file.length(), "testing BOM: " + children[i] );
-					break;
-
-				case "sh":
-					// !BOM + LF
-					assertEquals( 4, file.length(), "testing BOM: " + children[i] );
-					break;
-
-				default:
-					// !BOM + CRLF
-					assertEquals( 5, file.length(), "testing BOM: " + children[i] );
-					break;
-			}
-		}
+		assertEquals( ckbuilder.io.readFile( correctFile ), ckbuilder.io.readFile( tempFile ),
+			'testing line endings: [' + testName + ']' );
 	}
+}
 
-	function testLineEndings()
+function listFiles( file )
+{
+	var result = [];
+
+	file = path.relative( path.resolve( '.' ), file );
+
+	if ( fs.statSync( file ).isDirectory() )
 	{
-		print( "\nTesting line endings\n" );
-		var testName, tempFile, correctFile, sampleFile;
-		var name = "lineendings";
-		var dir = new File( assetsDir, 'lineendings' );
-		var dirList = dir.list();
-
-		for ( var i = 0 ; i < dirList.length ; i++ )
-		{
-			if ( dirList[i].indexOf( ".correct." ) === -1 )
-				continue;
-
-			testName = dirList[i].replace( ".correct", "" );
-
-			sampleFile = new File( assetsDir, name + '/' + testName );
-			correctFile = new File( assetsDir, name + '/' + dirList[i] );
-			tempFile = new File( tempDir, name + '/' + testName );
-
-			CKBuilder.tools.fixLineEndings( sampleFile, tempFile );
-
-			assertEquals( CKBuilder.io.readFile( correctFile ), CKBuilder.io.readFile( tempFile ),
-				'testing line endings: [' + testName + ']' );
-		}
-	}
-
-	function listFiles( file )
-	{
-		var result = [];
-
-		if ( file.isDirectory() )
-		{
-			var children = file.list();
-			if ( !children.length )
-			{
-				result.push( file );
-			}
-			else
-			{
-				for ( var i = 0 ; i < children.length ; i++ )
-				{
-					result.push( listFiles( new File( file, children[i] ) ) );
-				}
-			}
-		}
-		else
+		var children = fs.readdirSync( file );
+		if ( !children.length )
 		{
 			result.push( file );
 		}
-
-		return result;
-	}
-
-	function testIgnoringPaths()
-	{
-		print( "\nTesting ignored paths...\n" );
-
-		var sourceLocation = new File( assetsDir, 'ignored' );
-		var targetLocation = new File( tempDir, 'ignored' );
-
-		var ignored = [ 'devtools', 'placeholder/lang/he.js', 'uicolor.js' ];
-		CKBuilder.io.copy( sourceLocation, targetLocation , function( sourceLocation, targetLocation ) {
-			if ( CKBuilder.config.isIgnoredPath( sourceLocation, ignored ) )
-				return -1;
-		});
-
-		var files = listFiles(targetLocation);
-		files.sort();
-		var validResult = [
-			'test/tmp/ignored/a11yhelp/lang/en.js',
-			'test/tmp/ignored/a11yhelp/lang/he.js',
-			'test/tmp/ignored/a11yhelp/plugin.js',
-			'test/tmp/ignored/placeholder/dialogs/placeholder.js',
-			'test/tmp/ignored/placeholder/lang/en.js',
-			'test/tmp/ignored/placeholder/lang/pl.js',
-			'test/tmp/ignored/placeholder/plugin.js',
-			'test/tmp/ignored/uicolor/lang/en.js',
-			'test/tmp/ignored/uicolor/lang/he.js',
-			'test/tmp/ignored/uicolor/plugin.js'];
-
-		assertEquals( files.length, 3, "Comparing plugins directories (same number of subfolders?)" );
-		var areEqual = files.toString().replace(/\\/g, "/") === validResult.toString();
-		assertEquals( true, areEqual, "Comparing plugins directories (are equal?)" );
-	}
-
-	function testLangProps()
-	{
-		print( "\nTesting language properties...\n" );
-
-		var sourceLocation = new File( assetsDir, 'langprops' );
-		var targetLocation = new File( tempDir, 'langprops' );
-
-		CKBuilder.io.copy( sourceLocation, targetLocation );
-
-		var plugins = {
-			devtools : {
-				test : { en : 1, pl : 1, foo : 1 },
-				expected : ['en', 'pl']
-			},
-			div : {
-				test: { foo : 1, bar : 1 },
-				expected: false
-			},
-			find : {
-				test : { en : 1, pl : 1, 'zh-cn' : 1, fr : 0 },
-				expected : ['en', 'pl', 'zh-cn']
-			},
-			colordialog : {
-				test : { en : 1, pl : 1, 'zh-cn' : 1, fr : 1 },
-				expected : ['en', 'pl', 'zh-cn', 'fr']
-			},
-			liststyle : {
-				test : { en : 1, pl : 1, 'zh-cn' : 1, he : 1 },
-				expected : ['en', 'pl', 'zh-cn', 'he']
-			},
-			magicline : {
-				test : { en : 1, pl : 1, foo : 1 },
-				expected : true
-			},
-			specialchar : {
-				test : { en : 1, pl : 1, 'zh-cn' : 1, he : 1 },
-				expected : ['en', 'pl', 'zh-cn', 'he']
-			}
-		};
-
-		for ( var plugin in plugins )
+		else
 		{
-			assertEquals( plugins[plugin].expected, CKBuilder.plugin.updateLangProperty( File( targetLocation, 'plugins/' + plugin + '/plugin.js'), plugins[plugin].test ), "lang property (" + plugin + ")" );
-			assertFilesAreEqual( File( sourceLocation, 'plugins_correct/' + plugin + '/plugin.js'), File( targetLocation, 'plugins/' + plugin + '/plugin.js') );
-		}
-	}
-
-	CKBuilder.plugin.updateLangProperty(File("test/_assets/requires/plugin_hr.js"), 'en.pl');
-
-	function testMinification()
-	{
-		print( "\nTesting minification...\n" );
-
-		var sourceLocation = new File( assetsDir, 'minification' );
-		var targetLocation = new File( tempDir, 'minification' );
-
-		CKBuilder.io.copy( sourceLocation, targetLocation , null, function( targetLocation ) {
-			if ( CKBuilder.io.getExtension( targetLocation.getName() ) === 'js'  )
-				CKBuilder.javascript.minify( targetLocation );
-		} );
-
-		var testName, tempFile, correctFile;
-		var dir = new File( tempDir, 'minification' );
-		var dirList = dir.list();
-
-		for ( var i = 0 ; i < dirList.length ; i++ )
-		{
-			if ( dirList[i].indexOf( ".correct" ) === -1 )
-				continue;
-
-			testName = dirList[i].replace( ".correct", "" );
-
-			correctFile = new File( dir, testName + '.correct' );
-			tempFile = new File( dir, testName );
-
-			assertEquals( CKBuilder.io.readFile( correctFile ), CKBuilder.io.readFile( tempFile ),
-				'minification[' + testName + ']' );
-		}
-	}
-
-	function testRequiredPlugins()
-	{
-		print( "\nTesting required plugins...\n" );
-
-		var assetsLocation = new File( assetsDir, 'requires' );
-		assertEquals( ['dialog', 'fakeobjects'], CKBuilder.plugin.getRequiredPlugins(new File( assetsLocation, "plugin_flash.js" )));
-		assertEquals( ['richcombo'], CKBuilder.plugin.getRequiredPlugins(new File( assetsLocation, "plugin_font.js" )));
-		assertEquals( ['dialog', 'fakeobjects'], CKBuilder.plugin.getRequiredPlugins(new File( assetsLocation, "plugin_link.js" )));
-		assertEquals( ['floatpanel'], CKBuilder.plugin.getRequiredPlugins(new File( assetsLocation, "plugin_menu.js" )));
-		assertEquals( [], CKBuilder.plugin.getRequiredPlugins(new File( assetsLocation, "plugin_xml.js" )));
-		assertEquals( [], CKBuilder.plugin.getRequiredPlugins(new File( assetsLocation, "plugin_hr.js" )));
-		assertEquals( [], CKBuilder.plugin.getRequiredPlugins(new File( assetsLocation, "plugin_hr2.js" )));
-		assertEquals( ['foo'], CKBuilder.plugin.getRequiredPlugins(new File( assetsLocation, "plugin_hr3.js" )));
-		assertEquals( ['dialog', 'contextmenu'], CKBuilder.plugin.getRequiredPlugins(new File( assetsLocation, "plugin_liststyle.js" )));
-	}
-
-	function testSkinBuilder()
-	{
-		print( "\nTesting skin builder...\n" );
-
-		var originalTimestamp = CKBuilder.options.timestamp;
-
-		// Stub the timestamp.
-		CKBuilder.options.timestamp = timestampStub;
-		CKBuilder.options.leaveCssUnminified = true;
-		var sourceLocation = new File( assetsDir, 'skins/kama' );
-		var correctResultLocation = new File( assetsDir, 'skins/kama_correct' );
-		var targetLocation = new File( tempDir, 'skins/kama' );
-
-		try {
-			CKBuilder.skin.build( sourceLocation, targetLocation );
-			assertDirectoriesAreEqual( correctResultLocation, targetLocation, 'Checking skin builder (CSS minification disabled)' );
-
-			CKBuilder.options.leaveCssUnminified = false;
-			var sourceLocation = new File( assetsDir, 'skins_minified/kama' );
-			var correctResultLocation = new File( assetsDir, 'skins_minified/kama_correct' );
-			var targetLocation = new File( tempDir, 'skins_minified/kama' );
-
-			CKBuilder.skin.build( sourceLocation, targetLocation );
-			assertDirectoriesAreEqual( correctResultLocation, targetLocation, 'Checking skin builder (CSS minification enabled)' );
-		} catch ( e ) {
-			// In any case restore timestamp.
-			CKBuilder.options.timestamp = originalTimestamp;
-			// And rethrow the exception.
-			throw e;
-		}
-	}
-
-	function testVerifyPlugins()
-	{
-		print( "\nTesting plugins verification...\n" );
-
-		var pluginsLocation = new File( assetsDir, 'verify_plugins' );
-		var dirList = pluginsLocation.list();
-		var plugins = {
-			'_pubme_extratags_1_1.zip' : { name : '_pubme_extratags',  expected : 'OK' },
-			'apinstein-ckeditor-autocss-2e37374.zip' : { name : 'autocss',  expected : 'OK' },
-			'autosave_1.0.2.zip' : { name : 'autosave',  expected : 'OK' },
-			'confighelper1.2.zip' : { name : 'confighelper',  expected : 'OK' },
-			'fakeelements_checkbox_radio_select.zip' : { name : 'formchanges',  expected : 'OK' },
-			'groupedcolorbutton.zip' : { name : 'groupedcolorbutton',  expected : 'OK' },
-			'highlite_source_with_codemirror.zip' : { name : 'highlightsource',  expected : "The plugin name defined inside plugin.js (sourcepopup) does not match the expected plugin name (highlightsource)\n" },
-			'htmlbuttons1.0.zip' : { name : 'htmlbuttons',  expected : 'OK' },
-			'imagepaste1.0.zip' : { name : 'imagepaste',  expected : 'OK' },
-			'insert-edit_source_code_icons.zip' : { name : 'insertedit',  expected : "The plugin name defined inside plugin.js (scriptcode) does not match the expected plugin name (insertedit)\n" },
-			'languages.zip' : { name : 'languages',  expected : 'OK' },
-			'lightbox_plus.zip' : { name : 'lightboxplus',  expected : "The plugin name defined inside plugin.js (lightbox) does not match the expected plugin name (lightboxplus)\n" },
-			'links_to_own_pages.zip' : { name : 'linktoown',  expected : "The plugin name defined inside plugin.js (internpage) does not match the expected plugin name (linktoown)\n" },
-			'loremIpsum.zip' : { name : 'loremipsum',  expected : "The plugin name defined inside plugin.js (loremIpsum) does not match the expected plugin name (loremipsum)\n" },
-			'onchange1.5.zip' : { name : 'onchange',  expected : 'OK' },
-			'small_google_map.zip' : { name : 'gmap',  expected : 'OK' },
-			'smallerselection0.1.zip' : { name : 'smallerselection',  expected : 'OK' },
-			'video1.3.zip' : { name : 'video',  expected : 'OK' },
-			'w8tcha-CKEditor-oEmbed-Plugin-481d449.zip' : { name : 'oEmbed',  expected : "Found more than one plugin.js:\n/w8tcha-CKEditor-oEmbed-Plugin-481d449/oEmbed_CKEditor3/oEmbed/plugin.js\n/w8tcha-CKEditor-oEmbed-Plugin-481d449/oEmbed_CKEditor4/oEmbed/plugin.js\n" },
-			'whitelist1.0.zip' : { name : 'whitelist',  expected : 'OK' },
-			'xmltemplates1.0.zip' : { name : 'xmltemplates',  expected : 'OK' },
-			'youtube.zip' : { name : 'youtube',  expected : 'OK' },
-			'youtube_mp3.zip' : { name : 'youtube',  expected : "Found more than one plugin.js:\n/youtube_mp3/mp3player/plugin.js\n/youtube_mp3/youtube/plugin.js\n" },
-			'zoom1.0.zip' : { name : 'zoom', expected : 'OK' }
-		};
-
-		for ( var i = 0 ; i < dirList.length ; i++ )
-		{
-			var file = new File( pluginsLocation, dirList[i] );
-			if ( file.isDirectory() )
+			for ( var i = 0 ; i < children.length ; i++ )
 			{
-				assertEquals( "OK", CKBuilder.plugin.verify( file.getPath(), { pluginName : String( file.getName() ) } ));
+				result.push( listFiles( path.resolve( file, children[i] ) ) );
 			}
-			else
-			{
-				assertEquals( plugins[file.getName()].expected, CKBuilder.plugin.verify( file.getPath(), { pluginName : plugins[file.getName()].name } ));
-			}
-			//print('Checking ' + file.getPath());
-
 		}
 	}
-
-	function testVerifySkins()
+	else
 	{
-		print( "\nTesting skins verification...\n" );
+		result.push( file );
+	}
 
-		var skinsLocation = new File( assetsDir, 'verify_skins' );
-		var dirList = skinsLocation.list();
+	return result;
+}
 
-		for ( var i = 0 ; i < dirList.length ; i++ )
+function testIgnoringPaths()
+{
+	console.log( "\nTesting ignored paths...\n" );
+
+	var sourceLocation = path.resolve( assetsDir, 'ignored' );
+	var targetLocation = path.resolve( tempDir, 'ignored' );
+
+	var ignored = [ 'devtools', 'placeholder/lang/he.js', 'uicolor.js' ];
+	ckbuilder.io.copy( sourceLocation, targetLocation , function( sourceLocation, targetLocation ) {
+		if ( ckbuilder.config.isIgnoredPath( sourceLocation, ignored ) )
+			return -1;
+	});
+
+	var files = listFiles( targetLocation );
+	files.sort();
+	var validResult = [
+		'test/tmp/ignored/a11yhelp/lang/en.js',
+		'test/tmp/ignored/a11yhelp/lang/he.js',
+		'test/tmp/ignored/a11yhelp/plugin.js',
+		'test/tmp/ignored/placeholder/dialogs/placeholder.js',
+		'test/tmp/ignored/placeholder/lang/en.js',
+		'test/tmp/ignored/placeholder/lang/pl.js',
+		'test/tmp/ignored/placeholder/plugin.js',
+		'test/tmp/ignored/uicolor/lang/en.js',
+		'test/tmp/ignored/uicolor/lang/he.js',
+		'test/tmp/ignored/uicolor/plugin.js'];
+
+	assertEquals( files.length, 3, "Comparing plugins directories (same number of subfolders?)" );
+	var areEqual = files.toString().replace(/\\/g, "/") === validResult.toString();
+	assertEquals( true, areEqual, "Comparing plugins directories (are equal?)" );
+}
+
+function testLangProps()
+{
+	console.log( "\nTesting language properties...\n" );
+
+	var sourceLocation = path.resolve( assetsDir, 'langprops' );
+	var targetLocation = path.resolve( tempDir, 'langprops' );
+
+	ckbuilder.io.copy( sourceLocation, targetLocation );
+
+	var plugins = {
+		devtools : {
+			test : { en : 1, pl : 1, foo : 1 },
+			expected : ['en', 'pl']
+		},
+		div : {
+			test: { foo : 1, bar : 1 },
+			expected: false
+		},
+		find : {
+			test : { en : 1, pl : 1, 'zh-cn' : 1, fr : 0 },
+			expected : ['en', 'pl', 'zh-cn']
+		},
+		colordialog : {
+			test : { en : 1, pl : 1, 'zh-cn' : 1, fr : 1 },
+			expected : ['en', 'pl', 'zh-cn', 'fr']
+		},
+		liststyle : {
+			test : { en : 1, pl : 1, 'zh-cn' : 1, he : 1 },
+			expected : ['en', 'pl', 'zh-cn', 'he']
+		},
+		magicline : {
+			test : { en : 1, pl : 1, foo : 1 },
+			expected : true
+		},
+		specialchar : {
+			test : { en : 1, pl : 1, 'zh-cn' : 1, he : 1 },
+			expected : ['en', 'pl', 'zh-cn', 'he']
+		}
+	};
+
+	for ( var plugin in plugins )
+	{
+		assertEquals( plugins[plugin].expected, ckbuilder.plugin.updateLangProperty( path.resolve( targetLocation, 'plugins/' + plugin + '/plugin.js'), plugins[plugin].test ), "lang property (" + plugin + ")" );
+		assertFilesAreEqual( path.resolve( sourceLocation, 'plugins_correct/' + plugin + '/plugin.js'), path.resolve( targetLocation, 'plugins/' + plugin + '/plugin.js') );
+	}
+}
+
+ckbuilder.plugin.updateLangProperty(path.resolve("test/_assets/requires/plugin_hr.js"), 'en.pl');
+
+function testMinification()
+{
+	console.log( "\nTesting minification...\n" );
+
+	var sourceLocation = path.resolve( assetsDir, 'minification' );
+	var targetLocation = path.resolve( tempDir, 'minification' );
+
+	ckbuilder.io.copy( sourceLocation, targetLocation , null, function( targetLocation ) {
+		if ( ckbuilder.io.getExtension( path.basename( targetLocation ) ) === 'js'  )
+			ckbuilder.javascript.minify( targetLocation );
+	} );
+
+	var testName, tempFile, correctFile;
+	var dir = path.resolve( tempDir, 'minification' );
+	var dirList = fs.readdirSync( dir );
+
+	for ( var i = 0 ; i < dirList.length ; i++ )
+	{
+		if ( dirList[i].indexOf( ".correct" ) === -1 )
+			continue;
+
+		testName = dirList[i].replace( ".correct", "" );
+
+		correctFile = path.resolve( dir, testName + '.correct' );
+		tempFile = path.resolve( dir, testName );
+
+		assertEquals( ckbuilder.io.readFile( correctFile ), ckbuilder.io.readFile( tempFile ),
+			'minification[' + testName + ']' );
+	}
+}
+
+function testRequiredPlugins()
+{
+	console.log( "\nTesting required plugins...\n" );
+
+	var assetsLocation = path.resolve( assetsDir, 'requires' );
+	assertEquals( ['dialog', 'fakeobjects'], ckbuilder.plugin.getRequiredPlugins(path.resolve( assetsLocation, "plugin_flash.js" )));
+	assertEquals( ['richcombo'], ckbuilder.plugin.getRequiredPlugins(path.resolve( assetsLocation, "plugin_font.js" )));
+	assertEquals( ['dialog', 'fakeobjects'], ckbuilder.plugin.getRequiredPlugins(path.resolve( assetsLocation, "plugin_link.js" )));
+	assertEquals( ['floatpanel'], ckbuilder.plugin.getRequiredPlugins(path.resolve( assetsLocation, "plugin_menu.js" )));
+	assertEquals( [], ckbuilder.plugin.getRequiredPlugins(path.resolve( assetsLocation, "plugin_xml.js" )));
+	assertEquals( [], ckbuilder.plugin.getRequiredPlugins(path.resolve( assetsLocation, "plugin_hr.js" )));
+	assertEquals( [], ckbuilder.plugin.getRequiredPlugins(path.resolve( assetsLocation, "plugin_hr2.js" )));
+	assertEquals( ['foo'], ckbuilder.plugin.getRequiredPlugins(path.resolve( assetsLocation, "plugin_hr3.js" )));
+	assertEquals( ['dialog', 'contextmenu'], ckbuilder.plugin.getRequiredPlugins(path.resolve( assetsLocation, "plugin_liststyle.js" )));
+}
+
+function testSkinBuilder()
+{
+	console.log( "\nTesting skin builder...\n" );
+
+	var originalTimestamp = ckbuilder.options.timestamp;
+
+	// Stub the timestamp.
+	ckbuilder.options.timestamp = timestampStub;
+	ckbuilder.options.leaveCssUnminified = true;
+	var sourceLocation = path.resolve( assetsDir, 'skins/kama' );
+	var correctResultLocation = path.resolve( assetsDir, 'skins/kama_correct' );
+	var targetLocation = path.resolve( tempDir, 'skins/kama' );
+
+	try {
+		ckbuilder.skin.build( sourceLocation, targetLocation );
+		assertDirectoriesAreEqual( correctResultLocation, targetLocation, 'Checking skin builder (CSS minification disabled)' );
+
+		ckbuilder.options.leaveCssUnminified = false;
+		var sourceLocation = path.resolve( assetsDir, 'skins_minified/kama' );
+		var correctResultLocation = path.resolve( assetsDir, 'skins_minified/kama_correct' );
+		var targetLocation = path.resolve( tempDir, 'skins_minified/kama' );
+
+		ckbuilder.skin.build( sourceLocation, targetLocation );
+		assertDirectoriesAreEqual( correctResultLocation, targetLocation, 'Checking skin builder (CSS minification enabled)' );
+	} catch ( e ) {
+		// In any case restore timestamp.
+		ckbuilder.options.timestamp = originalTimestamp;
+		// And rethrow the exception.
+		throw e;
+	}
+}
+
+function testVerifyPlugins()
+{
+	console.log( "\nTesting plugins verification...\n" );
+
+	var pluginsLocation = path.resolve( assetsDir, 'verify_plugins' );
+	var dirList = fs.readdirSync( pluginsLocation );
+	var plugins = {
+		'_pubme_extratags_1_1.zip' : { name : '_pubme_extratags',  expected : 'OK' },
+		'apinstein-ckeditor-autocss-2e37374.zip' : { name : 'autocss',  expected : 'OK' },
+		'autosave_1.0.2.zip' : { name : 'autosave',  expected : 'OK' },
+		'confighelper1.2.zip' : { name : 'confighelper',  expected : 'OK' },
+		'fakeelements_checkbox_radio_select.zip' : { name : 'formchanges',  expected : 'OK' },
+		'groupedcolorbutton.zip' : { name : 'groupedcolorbutton',  expected : 'OK' },
+		'highlite_source_with_codemirror.zip' : { name : 'highlightsource',  expected : "The plugin name defined inside plugin.js (sourcepopup) does not match the expected plugin name (highlightsource)\n" },
+		'htmlbuttons1.0.zip' : { name : 'htmlbuttons',  expected : 'OK' },
+		'imagepaste1.0.zip' : { name : 'imagepaste',  expected : 'OK' },
+		'insert-edit_source_code_icons.zip' : { name : 'insertedit',  expected : "The plugin name defined inside plugin.js (scriptcode) does not match the expected plugin name (insertedit)\n" },
+		'languages.zip' : { name : 'languages',  expected : 'OK' },
+		'lightbox_plus.zip' : { name : 'lightboxplus',  expected : "The plugin name defined inside plugin.js (lightbox) does not match the expected plugin name (lightboxplus)\n" },
+		'links_to_own_pages.zip' : { name : 'linktoown',  expected : "The plugin name defined inside plugin.js (internpage) does not match the expected plugin name (linktoown)\n" },
+		'loremIpsum.zip' : { name : 'loremipsum',  expected : "The plugin name defined inside plugin.js (loremIpsum) does not match the expected plugin name (loremipsum)\n" },
+		'onchange1.5.zip' : { name : 'onchange',  expected : 'OK' },
+		'small_google_map.zip' : { name : 'gmap',  expected : 'OK' },
+		'smallerselection0.1.zip' : { name : 'smallerselection',  expected : 'OK' },
+		'video1.3.zip' : { name : 'video',  expected : 'OK' },
+		'w8tcha-CKEditor-oEmbed-Plugin-481d449.zip' : { name : 'oEmbed',  expected : "Found more than one plugin.js:\n/w8tcha-CKEditor-oEmbed-Plugin-481d449/oEmbed_CKEditor3/oEmbed/plugin.js\n/w8tcha-CKEditor-oEmbed-Plugin-481d449/oEmbed_CKEditor4/oEmbed/plugin.js\n" },
+		'whitelist1.0.zip' : { name : 'whitelist',  expected : 'OK' },
+		'xmltemplates1.0.zip' : { name : 'xmltemplates',  expected : 'OK' },
+		'youtube.zip' : { name : 'youtube',  expected : 'OK' },
+		'youtube_mp3.zip' : { name : 'youtube',  expected : "Found more than one plugin.js:\n/youtube_mp3/mp3player/plugin.js\n/youtube_mp3/youtube/plugin.js\n" },
+		'zoom1.0.zip' : { name : 'zoom', expected : 'OK' }
+	};
+
+	for ( var i = 0 ; i < dirList.length ; i++ )
+	{
+		var file = path.resolve( pluginsLocation, dirList[i] );
+		if ( fs.statSync( file ).isDirectory() )
 		{
-			var file = new File( skinsLocation, dirList[i] );
-			if ( file.isDirectory() )
-			{
-				if ( file.getName() == "fake" ) {
-					assertEquals( "The skin name defined inside skin.js (kama) does not match the expected skin name (fake)\n", CKBuilder.skin.verify( file.getPath(), { skinName : file.getName() } ));
-				}
-				else if ( file.getName() == "noicons" ) {
-					assertEquals( "OK", CKBuilder.skin.verify( file.getPath(), { skinName : String( file.getName() ) } ));
-				}
-				else {
-					assertEquals( "OK", CKBuilder.skin.verify( file.getPath(), { skinName : String( file.getName() ) } ));
-				}
+			assertEquals( "OK", ckbuilder.plugin.verify( file, { pluginName : path.basename( file ) } ) );
+		}
+		else
+		{
+			assertEquals( plugins[path.basename( file ) ].expected, ckbuilder.plugin.verify( file, { pluginName : plugins[ path.basename( file ) ].name } ) );
+		}
+		//console.log('Checking ' + file.getPath());
+
+	}
+}
+
+function testVerifySkins()
+{
+	console.log( "\nTesting skins verification...\n" );
+
+	var skinsLocation = path.resolve( assetsDir, 'verify_skins' );
+	var dirList = fs.readdirSync( skinsLocation );
+
+	for ( var i = 0 ; i < dirList.length ; i++ )
+	{
+		var file = path.resolve( skinsLocation, dirList[i] );
+		if ( fs.statSync( file ).isDirectory() )
+		{
+			if ( path.basename( file ) == "fake" ) {
+				assertEquals( "The skin name defined inside skin.js (kama) does not match the expected skin name (fake)\n", ckbuilder.skin.verify( file, { skinName : path.basename( file ) } ));
+			}
+			else if ( path.basename( file ) == "noicons" ) {
+				assertEquals( "OK", ckbuilder.skin.verify( file, { skinName : path.basename( file ) } ));
+			}
+			else {
+				assertEquals( "OK", ckbuilder.skin.verify( file, { skinName : path.basename( file ) } ));
 			}
 		}
 	}
+}
 
-	function testSamples()
+function testSamples()
+{
+	console.log( "\nTesting samples merging...\n" );
+
+	var samplesLocation = path.resolve( assetsDir, 'samples/ckeditor-dev' );
+	var targetLocation = path.resolve( tempDir, 'samples' );
+	ckbuilder.io.copy( samplesLocation, targetLocation );
+	ckbuilder.samples.mergeSamples( targetLocation );
+
+	var correctResultLocation = path.resolve( assetsDir, 'samples/ckeditor-dev-correct' );
+	assertDirectoriesAreEqual( correctResultLocation, targetLocation, 'Checking merged samples' );
+
+}
+
+function testCopyrights()
+{
+	console.log( "\nTesting copyrights...\n" );
+	ckbuilder.options.commercial = true;
+	ckbuilder.options.leaveJsUnminified = true;
+	var sourceLocation = path.resolve( assetsDir, 'copyrights' );
+	var targetLocation = path.resolve( tempDir, 'copyrights' );
+	ckbuilder.io.copy( sourceLocation, targetLocation );
+
+	var testName, tempFile, correctFile;
+	var dir = path.resolve( tempDir, 'copyrights' );
+	var dirList = fs.readdirSync( dir );
+
+	for ( var i = 0 ; i < dirList.length ; i++ )
 	{
-		print( "\nTesting samples merging...\n" );
+		if ( dirList[i].indexOf( ".correct" ) === -1 )
+			continue;
 
-		var samplesLocation = new File( assetsDir, 'samples/ckeditor-dev' );
-		var targetLocation = new File( tempDir, 'samples' );
-		CKBuilder.io.copy( samplesLocation, targetLocation );
-		CKBuilder.samples.mergeSamples( targetLocation );
+		testName = dirList[i].replace( ".correct", "" );
 
-		var correctResultLocation = new File( assetsDir, 'samples/ckeditor-dev-correct' );
-		assertDirectoriesAreEqual( correctResultLocation, targetLocation, 'Checking merged samples' );
+		correctFile = path.resolve( dir, testName + '.correct' );
+		tempFile = path.resolve( dir, testName );
+		ckbuilder.tools.updateCopyrights( tempFile );
 
+		assertEquals( ckbuilder.io.readFile( correctFile ), ckbuilder.io.readFile( tempFile ),
+				'copyrights[' + testName + ']' );
 	}
+	ckbuilder.options.commercial = false;
+	ckbuilder.options.leaveJsUnminified = false;
+}
 
-	function testCopyrights()
-	{
-		print( "\nTesting copyrights...\n" );
-		CKBuilder.options.commercial = true;
-		CKBuilder.options.leaveJsUnminified = true;
-		var sourceLocation = new File( assetsDir, 'copyrights' );
-		var targetLocation = new File( tempDir, 'copyrights' );
-		CKBuilder.io.copy( sourceLocation, targetLocation );
+prepareTempDirs();
+testLangProps();
+testLanguageFiles();
+testSprite();
+testCssProcessor( "/css", true );
+testCssProcessor( "/css_minified", false );
+testDirectives();
+testBom();
+testLineEndings();
+testIgnoringPaths();
+testMinification();
+testRequiredPlugins();
+testSkinBuilder();
+testVerifyPlugins();
+testVerifySkins();
+testSamples();
+testCopyrights();
 
-		var testName, tempFile, correctFile;
-		var dir = new File( tempDir, 'copyrights' );
-		var dirList = dir.list();
-
-		for ( var i = 0 ; i < dirList.length ; i++ )
-		{
-			if ( dirList[i].indexOf( ".correct" ) === -1 )
-				continue;
-
-			testName = dirList[i].replace( ".correct", "" );
-
-			correctFile = new File( dir, testName + '.correct' );
-			tempFile = new File( dir, testName );
-			CKBuilder.tools.updateCopyrights( tempFile );
-
-			assertEquals( CKBuilder.io.readFile( correctFile ), CKBuilder.io.readFile( tempFile ),
-					'copyrights[' + testName + ']' );
-		}
-		CKBuilder.options.commercial = false;
-		CKBuilder.options.leaveJsUnminified = false;
-	}
-
-	prepareTempDirs();
-	testLangProps();
-	testLanguageFiles();
-	testSprite();
-	testCssProcessor( "/css", true );
-	testCssProcessor( "/css_minified", false );
-	testDirectives();
-	testBom();
-	testLineEndings();
-	testIgnoringPaths();
-	testMinification();
-	testRequiredPlugins();
-	testSkinBuilder();
-	testVerifyPlugins();
-	testVerifySkins();
-	testSamples();
-	testCopyrights();
-
-	print( '' );
-	print( 'Finished: ' + passCount + ' passed / ' + failCount + ' failed' );
-
-}());
+console.log( '' );
+console.log( 'Finished: ' + passCount + ' passed / ' + failCount + ' failed' );
