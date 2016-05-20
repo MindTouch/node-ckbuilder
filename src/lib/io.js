@@ -59,6 +59,9 @@ function compressDirectory( sourceLocation, outStream, compressMethod, rootDir, 
  */
 function copyFile( sourceLocation, targetLocation ) {
 	try {
+		if ( ckbuilder.options.debug > 1 ) {
+			console.log( "Copying file: " + path.resolve( sourceLocation ) );
+		}
 		fs.copySync( sourceLocation, targetLocation );
 		if ( ckbuilder.options.debug > 1 ) {
 			console.log( "File copied: " + path.resolve( targetLocation ) );
@@ -138,6 +141,9 @@ ckbuilder.io = {
 		try {
 			fs.removeSync( dir );
 		} catch ( e ) {
+			if ( ckbuilder.options.debug > 1 ) {
+				console.log( "Error: " + e.message );
+			}
 			throw "Cannot delete directory: " + dir;
 		}
 	},
@@ -152,6 +158,9 @@ ckbuilder.io = {
 		try {
 			fs.removeSync( filePath );
 		} catch ( e ) {
+			if ( ckbuilder.options.debug > 1 ) {
+				console.log( "Error: " + e.message );
+			}
 			throw "Cannot delete file: " + path.resolve( filePath );
 		}
 	},
@@ -405,9 +414,9 @@ ckbuilder.io = {
 
 			// cleaning up dir
 			try {
-				fs.emptyDir( tmpDir );
+				fs.emptyDirSync( tmpDir );
 			} catch ( e ) {
-				throw( "Unable to create temp directory: " + tmpDir + "\nError: " + e.message );
+				throw( "Unable to create or empty temp directory: " + tmpDir + "\nError: " + e.message );
 			}
 
 			// unzip into temp directory
