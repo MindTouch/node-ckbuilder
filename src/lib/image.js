@@ -195,10 +195,8 @@ ckbuilder.image = {
 		var maxIconHeight = 0;
 
 		for ( i = 0; i < files.length; i++ ) {
-			const canvas = new Canvas( 200, 200 );
-			const ctx = canvas.getContext( '2d' );
-			const bufferedImage = fs.readFileSync( files[ i ] );
-			const img = new Image;
+			var bufferedImage = fs.readFileSync( files[ i ] );
+			var img = new Image;
 			img.src = bufferedImage;
 
 			images[ i ] = {
@@ -264,7 +262,7 @@ ckbuilder.image = {
 				ypos = totalHeight;
 			}
 
-			if ( path.basename( images[ i ] ).indexOf( "-rtl" ) !== -1 ) {
+			if ( images[ i ].fileName.indexOf( "-rtl" ) !== -1 ) {
 				iconsHasRtl[ buttonName ] = 1;
 				cssRules.push( ".cke_rtl" + cssHidpiPrefix + " " + buttonSelector + "," + // The "cke_mixed_dir_content" env class is to increase the specificity,
 						// with RTL button in LTR editor.
@@ -298,8 +296,8 @@ ckbuilder.image = {
 		}
 
 		// Create the actual sprite
-		const canvas = new Canvas( maxIconWidth, totalHeight );
-		const ctx = canvas.getContext( '2d' );
+		var canvas = new Canvas( maxIconWidth, totalHeight );
+		var ctx = canvas.getContext( '2d' );
 		var currentY = 0;
 
 		for ( i = 0; i < images.length; i++ ) {
