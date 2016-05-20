@@ -6,12 +6,21 @@
 "use strict";
 
 const path = require( "path" );
-const jsp = require("uglify-js").parser;
-const pro = require("uglify-js").uglify;
+const uglifyjs = require( "uglify-js" );
 const linter = require( "eslint" ).linter;
 const ckbuilder = {
 	io: require( "./io" )
 };
+
+function filterComments( node, comment ) {
+    const text = comment.value;
+    const type = comment.type;
+    if ( type == "comment2" ) {
+
+        // multiline comment
+        return /@preserve|@license|@cc_on/i.test( text );
+    }
+}
 
 /**
  * Compile JavaScript file.
@@ -25,12 +34,15 @@ const ckbuilder = {
 function compileFile( file ) {
 	const code = ckbuilder.io.readFile( file );
 	try {
-		let ast = jsp.parse( code );
-		ast = pro.ast_mangle( ast );
-		ast = pro.ast_squeeze( ast );
-		return pro.gen_code( ast );
+		const result = uglifyjs.minify( code, {
+			fromString: true,
+			output: {
+				comments: filterComments
+			}
+		} );
+		return result.code;
 	} catch ( e ) {
-		throw new Error( "Unable to compile " + file + " file.\nError: " + e.message + ". Line: " + e.line + ". Col: " + e.col + ". Pos: " + e.pos );
+		throw new Error( "Unable to compile " + file + " file.\nError: " + e.toString() );
 	}
 }
 
@@ -62,9 +74,14 @@ ckbuilder.javascript = {
 	 * @static
 	 */
 	removeWhiteSpace: function( code, fileName ) {
-		let ast = jsp.parse( code );
-		// ast = pro.ast_squeeze( ast );
-		return pro.gen_code( ast, { beautify: true } );
+		const result = uglifyjs.minify( code, {
+			fromString: true,
+			output: {
+				comments: filterComments,
+				beautify: true
+			}
+		} );
+		return result.code;
 	},
 
 	/**
