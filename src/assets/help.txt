@@ -1,6 +1,6 @@
 CKBuilder 2.3.0
 
-USAGE: java -jar ckbuilder.jar
+USAGE: node ckbuilder.js
 
 [TASK: build release]
 SYNOPSIS:
@@ -32,7 +32,7 @@ DESCRIPTION:
   create the build package, contains the list of plugins to include.
 
 EXAMPLE:
-  java -jar ckbuilder.jar --build ckeditor-dev release --version 4.0
+  node ckbuilder.js --build ckeditor-dev release --version 4.0
 
 [TASK: build skin]
 SYNOPSIS:
@@ -52,7 +52,7 @@ DESCRIPTION:
   Creates a release version of a skin.
 
 EXAMPLE:
-  java -jar ckbuilder.jar --build-skin skins/myskin target_dir
+  node ckbuilder.js --build-skin skins/myskin target_dir
 
 [TASK: create build configuration file]
 SYNOPSIS:
@@ -65,7 +65,7 @@ DESCRIPTION:
   Creates build configuration file (default: build-config.js).
 
 EXAMPLE:
-  java -jar ckbuilder.jar --generate-build-config ckeditor-dev
+  node ckbuilder.js --generate-build-config ckeditor-dev
 
 [OTHER OPTIONS]
 

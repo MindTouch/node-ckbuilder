@@ -21,7 +21,7 @@ DESCRIPTION:
   Converts language files into "intermediate" format.
 
 EXAMPLE:
-  java -jar ckbuilder.jar --preprocess-core ckeditor-dev output
+  node ckbuilder.js --preprocess-core ckeditor-dev output
 
 [TASK: preprocess plugin]
 SYNOPSIS:
@@ -40,7 +40,7 @@ DESCRIPTION:
   Fixes missing entries and converts language files into "intermediate" format.
 
 EXAMPLE:
-  java -jar ckbuilder.jar --preprocess-plugin devtools output
+  node ckbuilder.js --preprocess-plugin devtools output
 
 [TASK: preprocess skin]
 SYNOPSIS:
@@ -59,7 +59,7 @@ DESCRIPTION:
   Merges CSS files.
 
 EXAMPLE:
-  java -jar ckbuilder.jar --preprocess-skin kama output
+  node ckbuilder.js --preprocess-skin kama output
 
 [TASK: verify plugin]
 SYNOPSIS:
@@ -74,7 +74,7 @@ DESCRIPTION:
   Checks for plugin.js and tries to parse JS files looking for syntax errors.
 
 EXAMPLE:
-  java -jar ckbuilder.jar --verify-plugin devtools
+  node ckbuilder.js --verify-plugin devtools
 
 [TASK: verify skin]
 SYNOPSIS:
@@ -89,4 +89,4 @@ DESCRIPTION:
   Checks for skin.js and tries to parse JS files looking for syntax errors.
 
 EXAMPLE:
-  java -jar ckbuilder.jar --verify-skin kama
+  node ckbuilder.js --verify-skin kama

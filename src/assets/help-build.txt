@@ -44,14 +44,14 @@ var CKBUILDER_CONFIG = {
 In oder to generate the base build configuration file (build-config.js), run the
 following command:
 
-    java -jar ckbuilder.jar --generate-build-config ckeditor-dev
+    node ckbuilder.js --generate-build-config ckeditor-dev
 
 ("ckeditor-dev" is the name of a folder with source files).
 
 After commenting out plugins that are not needed, to build the release run:
 
-    java -jar ckbuilder.jar --build ckeditor-dev release --version 4.0
+    node ckbuilder.js --build ckeditor-dev release --version 4.0
 
 Need more help? Run:
 
-    java -jar ckbuilder.jar --help
+    node ckbuilder.js --help
