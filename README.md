@@ -5,11 +5,6 @@ This repository contains the source files of CKBuilder, **a command line builder
 
 CKBuilder generates release packages of CKEditor out of its source code. 
 
-### Compiling CKBuilder
-
-You can compile CKBuilder into a single .jar file by running `build_jar.sh` located in the `dev\build` folder. The compiled file will be generated in the `bin` folder.
-[Apache Ant](http://ant.apache.org) is required to run it.
-
 ### Using CKBuilder source files
 
 You can generate a CKEditor release version using CKBuilder source files by running `build.sh` available in the `dev\scripts` folder. The release version of CKEditor will be generated in the `release` folder.
@@ -17,28 +12,21 @@ Make sure to download the CKEditor submodule first:
 
 	> git submodule update --init
 
-### Using the default ckbuilder.jar
+### Using ckbuilder.js
 
-If you did not compile your own version of `ckbuilder.jar` and all you want to do is to build CKEditor, then there is a simpler way to do this:
+Run
 
- 1. Clone the [CKEditor](https://github.com/ckeditor/ckeditor-dev) repository (hint: there is a "Download ZIP" button on the right side of the page if you don't know how to use git).
- 2. Inside ckeditor-dev run:
-
-    ```
     > ./dev/builder/build.sh
-    ```
 
- 3. That's it - CKBuilder will be downloaded automatically and a "release" version of CKEditor will be built in the new `dev/builder/release/` folder. 
+That's it - a "release" version of CKEditor will be built in the new `dev/builder/release/` folder. 
 
 **Note:** CKBuilder which is run by calling ```build.sh``` script will use default ```build-config.js``` which define skin, files to be ignored and plugins. For more information about build-config run builder with ```--build-help``` command.
  
 **Note2:** The shell script is designed to run on Mac/Linux. If you are a Windows user, install [Git for Windows](http://msysgit.github.io/), make sure "Git Bash" is checked during the installation process and then run this script using "Git Bash".
 
-### Using a custom ckbuilder.jar
-
 To get the list of all available commands and options, run:
 
-	> java -jar ckbuilder.jar --help
+	> node src/ckbuilder.js --help
 
 #### Available commands
 
