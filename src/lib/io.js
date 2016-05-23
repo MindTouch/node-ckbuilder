@@ -12,7 +12,7 @@ const archiver = require( "archiver" );
 const AdmZip = require( "adm-zip" );
 const ckbuilder = {
 	options: require( "./options" )
-}
+};
 
 const BOM_CHAR_CODE = 65279;
 const BOM = String.fromCharCode( BOM_CHAR_CODE );
@@ -357,9 +357,10 @@ ckbuilder.io = {
 		}
 
 		for ( let i = 0; i < files.length; i++ ) {
+			const file = path.resolve( dir, files[ i ] );
 			let stats;
 			try {
-				stats = fs.statSync( files[ i ] );
+				stats = fs.statSync( file );
 			} catch ( e ) {
 				continue;
 			}
@@ -367,7 +368,7 @@ ckbuilder.io = {
 				result.size += stats[ 'size' ];
 				result.files++;
 			} else {
-				const info = ckbuilder.io.getDirectoryInfo( files[ i ] );
+				const info = ckbuilder.io.getDirectoryInfo( file );
 				result.size += info.size;
 				result.files += info.files;
 			}
