@@ -196,7 +196,7 @@ ckbuilder.image = {
 
 		for ( i = 0; i < files.length; i++ ) {
 			var bufferedImage = fs.readFileSync( files[ i ] );
-			var img = new Image;
+			var img = new Image();
 			img.src = bufferedImage;
 
 			images[ i ] = {

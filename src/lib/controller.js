@@ -161,6 +161,6 @@ class Controller {
 
 		commandsHandlers[ foundCommandName ].call( this );
 	}
-};
+}
 
 module.exports = Controller;

@@ -18,7 +18,5 @@
 	"noarg": true,
 	// "onevar": true,,
 	"globals": {
-		"CKBuilder": false,
-		"YAHOO": false
 	}
 }

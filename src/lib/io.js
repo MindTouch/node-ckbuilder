@@ -84,7 +84,7 @@ function walkDirectory ( dir, callback ) {
 			}
 		}
 	});
-};
+}
 
 /**
  * Input output actions. Copy, delete files and directories. Save them, show directory info.
@@ -365,7 +365,7 @@ ckbuilder.io = {
 				continue;
 			}
 			if ( stats.isFile() ) {
-				result.size += stats[ 'size' ];
+				result.size += stats.size;
 				result.files++;
 			} else {
 				const info = ckbuilder.io.getDirectoryInfo( file );
@@ -440,7 +440,7 @@ ckbuilder.io = {
 
 	exists: function( path ) {
 		try {
-			const stats = fs.statSync( path );
+			fs.statSync( path );
 			return true;
 		} catch ( e ) {
 			return false;

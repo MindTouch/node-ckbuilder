@@ -9,6 +9,10 @@ const fs = require( "fs-extra" );
 const path = require( "path" );
 const ckbuilder = {
 	options: require( "./options" )
+};
+
+function escapeString( string ) {
+	return string.replace( /\\/g, "\\\\" ).replace( /\r/g, "\\r" ).replace( /\n/g, "\\n" ).replace( /'/g, "\\'" ).replace( /\u200b/g, "\\u200b" );
 }
 
 function escapeProperty( string ) {
@@ -17,10 +21,6 @@ function escapeProperty( string ) {
 	}
 
 	return "'" + escapeString( string ) + "'";
-}
-
-function escapeString( string ) {
-	return string.replace( /\\/g, "\\\\" ).replace( /\r/g, "\\r" ).replace( /\n/g, "\\n" ).replace( /'/g, "\\'" ).replace( /\u200b/g, "\\u200b" );
 }
 
 ckbuilder.utils = {

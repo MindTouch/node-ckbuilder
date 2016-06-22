@@ -24,6 +24,6 @@ if ( require.main === module ) {
 		skin: require( "./lib/skin" ),
 		tools: require( "./lib/tools" ),
 		utils: require( "./lib/utils" )
-	}
+	};
 	module.exports = ckbuilder;
 }

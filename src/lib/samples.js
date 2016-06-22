@@ -64,35 +64,6 @@ function getMetaInformation( text ) {
 }
 
 /**
- * Checks every plugin folder for the "samples" directory, moves the samples into the root "samples directory.
- *
- * @param {java.io.File} sourceLocation
- * @private
- * @member ckbuilder.samples
- */
-function mergePluginSamples( sourceLocation ) {
-	var pluginsLocation = path.resolve( sourceLocation, "plugins" );
-	if ( !ckbuilder.io.exists( pluginsLocation ) ) {
-		return;
-	}
-
-	var children = fs.readdirSync( pluginsLocation );
-	children.sort();
-	for ( var i = 0; i < children.length; i++ ) {
-		if ( children[ i ] === ".svn" || children[ i ] === "CVS" || children[ i ] === ".git" ) {
-			continue;
-		}
-
-		// Find the "samples" folder
-		var pluginSamplesLocation = path.join( pluginsLocation, children[ i ] + '/samples' );
-		if ( ckbuilder.io.exists( pluginSamplesLocation ) && fs.statSync( pluginSamplesLocation ).isDirectory() ) {
-			mergeSamples( pluginSamplesLocation, path.join( sourceLocation, 'samples/old/' + children[ i ] ), children[ i ] );
-			ckbuilder.io.deleteDirectory( pluginSamplesLocation );
-		}
-	}
-}
-
-/**
  * Moves samples from source to the target location, gathers information stored in meta tags.
  *
  * @param {java.io.File} sourceLocation
@@ -137,6 +108,35 @@ function mergeSamples( sourceLocation, targetLocation, samplePath ) {
 			samplesMetaInformation['new'][ samplePath ] = meta;
 		} else {
 			samplesMetaInformation['normal'][ samplePath ] = meta; // jshint ignore:line
+		}
+	}
+}
+
+/**
+ * Checks every plugin folder for the "samples" directory, moves the samples into the root "samples directory.
+ *
+ * @param {java.io.File} sourceLocation
+ * @private
+ * @member ckbuilder.samples
+ */
+function mergePluginSamples( sourceLocation ) {
+	var pluginsLocation = path.resolve( sourceLocation, "plugins" );
+	if ( !ckbuilder.io.exists( pluginsLocation ) ) {
+		return;
+	}
+
+	var children = fs.readdirSync( pluginsLocation );
+	children.sort();
+	for ( var i = 0; i < children.length; i++ ) {
+		if ( children[ i ] === ".svn" || children[ i ] === "CVS" || children[ i ] === ".git" ) {
+			continue;
+		}
+
+		// Find the "samples" folder
+		var pluginSamplesLocation = path.join( pluginsLocation, children[ i ] + '/samples' );
+		if ( ckbuilder.io.exists( pluginSamplesLocation ) && fs.statSync( pluginSamplesLocation ).isDirectory() ) {
+			mergeSamples( pluginSamplesLocation, path.join( sourceLocation, 'samples/old/' + children[ i ] ), children[ i ] );
+			ckbuilder.io.deleteDirectory( pluginSamplesLocation );
 		}
 	}
 }

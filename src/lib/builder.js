@@ -808,16 +808,17 @@ const builder = function( srcDir, dstDir ) {
 				return String( version ).toLowerCase().replace( / /g, "_" ).replace( /\(\)/g, "" );
 			};
 
+			var stats;
 			if ( !ckbuilder.options.noZip ) {
 				var zipFile = path.join( path.dirname( targetLocation ), "ckeditor_" + normalize( ckbuilder.options.version ) + ".zip" );
 				ckbuilder.io.zipDirectory( targetLocation, zipFile, "ckeditor" );
-				var stats = fs.statSync( zipFile );
+				stats = fs.statSync( zipFile );
 				console.log( "    Created " + path.basename( zipFile ) + "...: " + stats.size + " bytes (" + Math.round( stats.size / info.size * 100 ) + "% of original)" );
 			}
 			if ( !ckbuilder.options.noTar ) {
 				var tarFile = path.join( path.dirname( targetLocation ), "ckeditor_" + normalize( ckbuilder.options.version ) + ".tar.gz" );
 				ckbuilder.io.targzDirectory( targetLocation, tarFile, "ckeditor" );
-				var stats = fs.statSync( tarFile );
+				stats = fs.statSync( tarFile );
 				console.log( "    Created " + path.basename( tarFile ) + ": " + stats.size + " bytes (" + Math.round( stats.size / info.size * 100 ) + "% of original)" );
 			}
 			ckbuilder.utils.printUsedTime( time );

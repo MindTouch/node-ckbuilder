@@ -15,7 +15,7 @@ const ckbuilder = {
 function filterComments( node, comment ) {
     const text = comment.value;
     const type = comment.type;
-    if ( type == "comment2" ) {
+    if ( type === "comment2" ) {
 
         // multiline comment
         return /@preserve|@license|@cc_on/i.test( text );
@@ -61,7 +61,7 @@ ckbuilder.javascript = {
 	 * @static
 	 */
 	findErrors: function( code, fileName ) {
-		const messages = linter.verify( code, {}, { filename: filename || "input.js" });
+		const messages = linter.verify( code, {}, { filename: fileName || "input.js" });
 		return messages.length ? messages : null;
 	},
 
@@ -79,6 +79,9 @@ ckbuilder.javascript = {
 			output: {
 				comments: filterComments,
 				beautify: true
+			},
+			parse: {
+				filename: fileName
 			}
 		} );
 		return result.code;
