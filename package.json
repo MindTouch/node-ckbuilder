@@ -17,6 +17,7 @@
     "yargs": "4.7.0"
   },
   "scripts": {
+    "inspect": "jshint -c dev/jshint/.jshintrc --show-non-errors src/*.js src/*/*.js",
     "test": "node test/test.js"
   },
   "repository": {
