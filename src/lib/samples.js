@@ -5,15 +5,15 @@
 
 "use strict";
 
-const fs = require( "fs-extra" );
-const path = require( "path" );
-const ckbuilder = {
+var fs = require( "fs-extra" );
+var path = require( "path" );
+var ckbuilder = {
 	io: require( "./io" ),
 	tools: require( "./tools" ),
 	options: require( "./options" )
 };
 
-const regexLib = {
+var regexLib = {
 	pluginsSamples: new RegExp( '<!--\\s*PLUGINS_SAMPLES\\s*?-->' ),
 	advancedSamples: new RegExp( '<!--\\s*ADVANCED_SAMPLES\\s*-->' ),
 	inlineEditingSamples: new RegExp( '<!--\\s*INLINE_EDITING_SAMPLES\\s*-->' ),
@@ -28,7 +28,7 @@ const regexLib = {
  * @property {Object} samplesMetaInformation
  * @member ckbuilder.samples
  */
-const samplesMetaInformation = {
+var samplesMetaInformation = {
 	'beta': {},
 	'new': {},
 	'normal': {}

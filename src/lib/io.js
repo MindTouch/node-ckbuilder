@@ -5,17 +5,17 @@
 
 "use strict";
 
-const fs = require( "fs-extra" );
-const os = require( "os" );
-const path = require( "path" );
-const archiver = require( "archiver" );
-const AdmZip = require( "adm-zip" );
-const ckbuilder = {
+var fs = require( "fs-extra" );
+var os = require( "os" );
+var path = require( "path" );
+var archiver = require( "archiver" );
+var AdmZip = require( "adm-zip" );
+var ckbuilder = {
 	options: require( "./options" )
 };
 
-const BOM_CHAR_CODE = 65279;
-const BOM = String.fromCharCode( BOM_CHAR_CODE );
+var BOM_CHAR_CODE = 65279;
+var BOM = String.fromCharCode( BOM_CHAR_CODE );
 
 /**
  * Creates an archive from specified path.
@@ -35,8 +35,8 @@ function compressDirectory( sourceLocation, outStream, compressMethod, rootDir, 
 	if ( !( compressMethod in { zip: 1, tar: 1 } ) ) {
 		throw 'Unknown compression method: ' + compressMethod;
 	}
-    const output = fs.createWriteStream( outStream );
-    const archive = archiver( compressMethod );
+    var output = fs.createWriteStream( outStream );
+    var archive = archiver( compressMethod );
     output.on( 'close', () => {
     	if ( typeof cb === 'function' ) {
     		cb();
@@ -72,7 +72,7 @@ function copyFile( sourceLocation, targetLocation ) {
 }
 
 function walkDirectory ( dir, callback ) {
-	const files = fs.readdirSync( dir );
+	var files = fs.readdirSync( dir );
 	files.forEach( ( file ) => {
 		file = path.resolve( dir, file );
 		if ( fs.statSync( file ).isDirectory() ) {
@@ -119,7 +119,7 @@ ckbuilder.io = {
 	 */
 	unzipFile: function( zipFile, newPath ) {
 		try {
-			const zip = new AdmZip( zipFile );
+			var zip = new AdmZip( zipFile );
 			zip.extractAllTo( newPath );
 		} catch ( e ) {
 			throw "Unable to extract archive file:\n Source: " + zipFile + "\n" + e.message;
@@ -204,7 +204,7 @@ ckbuilder.io = {
 	 */
 	copy: function( sourceLocation, targetLocation, callbackBefore, callbackAfter ) {
 		if ( callbackBefore ) {
-			const code = callbackBefore.call( this, sourceLocation, targetLocation );
+			var code = callbackBefore.call( this, sourceLocation, targetLocation );
 			if ( code === -1 ) {
 				return;
 			}
@@ -218,14 +218,14 @@ ckbuilder.io = {
 
 		if ( fs.statSync( sourceLocation ).isDirectory() ) {
 			fs.ensureDirSync( targetLocation );
-			const children = fs.readdirSync( sourceLocation );
-			for ( let i = 0; i < children.length; i++ ) {
+			var children = fs.readdirSync( sourceLocation );
+			for ( var i = 0; i < children.length; i++ ) {
 				if ( children[ i ] === ".svn" || children[ i ] === "CVS" || children[ i ] === ".git" ) {
 					continue;
 				}
 				ckbuilder.io.copy( path.join( sourceLocation, children[ i ] ), path.join( targetLocation, children[ i ] ), callbackBefore, callbackAfter );
 			}
-			const list = fs.readdirSync( targetLocation );
+			var list = fs.readdirSync( targetLocation );
 			if ( !list.length ) {
 				ckbuilder.io.deleteDirectory( targetLocation );
 			}
@@ -269,7 +269,7 @@ ckbuilder.io = {
 	 * @static
 	 */
 	setByteOrderMark: function( file, includeUtf8Bom ) {
-		let data = "";
+		var data = "";
 		try {
 			data = fs.readFileSync( file, 'utf-8' );
 
@@ -302,9 +302,9 @@ ckbuilder.io = {
 	 * @static
 	 */
 	readFiles: function( files, separator ) {
-		let out = [];
+		var out = [];
 
-		for ( let i = 0; i < files.length; i++ ) {
+		for ( var i = 0; i < files.length; i++ ) {
 			out.push( ckbuilder.io.readFile( files[ i ] ) );
 		}
 
@@ -320,7 +320,7 @@ ckbuilder.io = {
 	 * @static
 	 */
 	readFile: function( file ) {
-		let data;
+		var data;
 		try {
 			data = fs.readFileSync( file, 'utf-8' );
 		} catch ( e ) {
@@ -341,7 +341,7 @@ ckbuilder.io = {
 	 * @static
 	 */
 	getDirectoryInfo: function( dir ) {
-		let result = {
+		var result = {
 				files: 0,
 				size: 0
 			};
@@ -350,15 +350,15 @@ ckbuilder.io = {
 			return result;
 		}
 
-		const files = fs.readdirSync( dir );
+		var files = fs.readdirSync( dir );
 
 		if ( !files.length ) {
 			return result;
 		}
 
-		for ( let i = 0; i < files.length; i++ ) {
-			const file = path.resolve( dir, files[ i ] );
-			let stats;
+		for ( var i = 0; i < files.length; i++ ) {
+			var file = path.resolve( dir, files[ i ] );
+			var stats;
 			try {
 				stats = fs.statSync( file );
 			} catch ( e ) {
@@ -368,7 +368,7 @@ ckbuilder.io = {
 				result.size += stats.size;
 				result.files++;
 			} else {
-				const info = ckbuilder.io.getDirectoryInfo( file );
+				var info = ckbuilder.io.getDirectoryInfo( file );
 				result.size += info.size;
 				result.files += info.files;
 			}
@@ -401,10 +401,10 @@ ckbuilder.io = {
 	 * @returns {java.io.File} Directory on which work will be done.
 	 */
 	prepareWorkingDirectoryIfNeeded: function( element ) {
-		const elementLocation = path.resolve( element );
-		let tmpDir;
-		let workingDir;
-		let isTemporary = false;
+		var elementLocation = path.resolve( element );
+		var tmpDir;
+		var workingDir;
+		var isTemporary = false;
 		if ( !fs.statSync( elementLocation ).isDirectory() ) {
 			if ( ckbuilder.io.getExtension( elementLocation ) !== "zip" ) {
 				throw( "The element file is not a zip file: " + elementLocation );

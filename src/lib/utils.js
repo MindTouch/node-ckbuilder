@@ -5,9 +5,9 @@
 
 "use strict";
 
-const fs = require( "fs-extra" );
-const path = require( "path" );
-const ckbuilder = {
+var fs = require( "fs-extra" );
+var path = require( "path" );
+var ckbuilder = {
 	options: require( "./options" )
 };
 
@@ -32,8 +32,8 @@ ckbuilder.utils = {
 	 * @static
 	 */
 	copyright: function( eol ) {
-		let copyright;
-		const date = new Date();
+		var copyright;
+		var date = new Date();
 
 		if ( ckbuilder.options.commercial ) {
 			copyright = "/*" + eol + "This software is covered by CKEditor Commercial License. Usage without proper license is prohibited." + eol + "Copyright (c) 2003-" + date.getFullYear() + ", CKSource - Frederico Knabben. All rights reserved." + eol + "*/" + eol;
@@ -52,8 +52,8 @@ ckbuilder.utils = {
 	 * @static
 	 */
 	printUsedTime: function( timeStart ) {
-		const timeEnd = new Date();
-		const timeTaken = timeEnd - timeStart;
+		var timeEnd = new Date();
+		var timeTaken = timeEnd - timeStart;
 		if ( timeTaken > 1000 ) {
 			console.log( "    Time taken.....: " + ( timeTaken / 1000 ) + "seconds" );
 		}
@@ -81,16 +81,16 @@ ckbuilder.utils = {
 	 */
 	prettyPrintObject: function( obj, indent ) {
 		indent = indent || "";
-		let result = "";
-		for ( let property in obj ) {
-			let value = obj[ property ];
+		var result = "";
+		for ( var property in obj ) {
+			var value = obj[ property ];
 			if ( typeof value === 'string' ) {
 				value = "'" + escapeString( value ) + "'";
 			} else if ( typeof value === 'object' ) {
 				if ( value instanceof Array ) {
 					value = "[ " + value + " ]";
 				} else {
-					const od = ckbuilder.utils.prettyPrintObject( value, indent + "	" );
+					var od = ckbuilder.utils.prettyPrintObject( value, indent + "	" );
 					value = "\n" + indent + "{\n" + od + "\n" + indent + "}";
 				}
 			}
@@ -107,16 +107,16 @@ ckbuilder.utils = {
 	 * @static
 	 */
 	printObject: function( obj ) {
-		let result = '';
-		for ( let property in obj ) {
-			let value = obj[ property ];
+		var result = '';
+		for ( var property in obj ) {
+			var value = obj[ property ];
 			if ( typeof value === 'string' ) {
 				value = "'" + value + "'";
 			} else if ( typeof value === 'object' ) {
 				if ( value instanceof Array )
 					value = "[" + value + "]";
 				else {
-					const od = ckbuilder.utils.printObject( value );
+					var od = ckbuilder.utils.printObject( value );
 					value = "{" + od + "}";
 				}
 			}
@@ -135,11 +135,11 @@ ckbuilder.utils = {
 	 * @static
 	 */
 	findFileInDirectory: function( filename, dir ) {
-		const dirList = fs.readdirSync( dir );
+		var dirList = fs.readdirSync( dir );
 		dirList.forEach( ( file ) => {
-			const f = path.resolve( dir, file );
+			var f = path.resolve( dir, file );
 			if ( fs.statSync( f ).isDirectory() ) {
-				const tmp = ckbuilder.utils.findFileInDirectory( filename, f );
+				var tmp = ckbuilder.utils.findFileInDirectory( filename, f );
 				if ( tmp ) {
 					return tmp;
 				}
@@ -160,12 +160,12 @@ ckbuilder.utils = {
 	 * @static
 	 */
 	findFilesInDirectory: function( filename, dir ) {
-		let files = [];
-		const dirList = fs.readdirSync( dir );
+		var files = [];
+		var dirList = fs.readdirSync( dir );
 		dirList.forEach( ( file ) => {
-			const f = path.resolve( dir, file );
+			var f = path.resolve( dir, file );
 			if ( fs.statSync( f ).isDirectory() ) {
-				const tmp = ckbuilder.utils.findFilesInDirectory( filename, f );
+				var tmp = ckbuilder.utils.findFilesInDirectory( filename, f );
 				if ( tmp ) {
 					files = files.concat( tmp );
 				}
@@ -189,8 +189,8 @@ ckbuilder.utils = {
 	 * @static
 	 */
 	merge: function( obj1, obj2, fullMerge ) {
-		let result = {};
-		for ( let i in obj2 ) {
+		var result = {};
+		for ( var i in obj2 ) {
 			if ( fullMerge === false && typeof( obj1[ i ] ) === 'undefined' ) {
 				continue;
 			}
@@ -208,7 +208,7 @@ ckbuilder.utils = {
 				result[ i ] = obj2[ i ];
 			}
 		}
-		for ( let j in obj1 ) {
+		for ( var j in obj1 ) {
 			if ( typeof obj2[ j ] !== 'undefined' ) {
 				continue;
 			}

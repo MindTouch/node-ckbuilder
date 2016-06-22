@@ -5,16 +5,16 @@
 
 "use strict";
 
-const fs = require( "fs-extra" );
-const path = require( "path" );
-const linter = require( "eslint" ).linter;
-const ckbuilder = {
+var fs = require( "fs-extra" );
+var path = require( "path" );
+var linter = require( "eslint" ).linter;
+var ckbuilder = {
 	io: require( "./io" ),
 	options: require( "./options" ),
 	error: require( "./error" )
 };
 
-const regexLib = {
+var regexLib = {
 	eol: new RegExp( '(?:\\x09|\\x20)+$', 'gm' ),
 	eof: new RegExp( '(?:\\x09|\\x20|\\r|\\n)+$' ),
 	remove: new RegExp( '^.*?%REMOVE_START%[\\s\\S]*?%REMOVE_END%.*?$', 'gm' ),
@@ -30,7 +30,7 @@ const regexLib = {
 };
 
 
-const lineEndings = {
+var lineEndings = {
 	"cgi": "\n",
 	"pl": "\n",
 	"sh": "\n",
@@ -72,8 +72,8 @@ ckbuilder.tools = {
 	 * @static
 	 */
 	fixLineEndings: function( sourceFile, targetFile ) {
-		const extension = ckbuilder.io.getExtension( sourceFile );
-		const bomExtensions = { asp: 1, js: 1 };
+		var extension = ckbuilder.io.getExtension( sourceFile );
+		var bomExtensions = { asp: 1, js: 1 };
 
 		if ( !lineEndings[ extension ] ) {
 			return false;
@@ -83,11 +83,11 @@ ckbuilder.tools = {
 			console.log( "Fixing line endings in: " + path.resolve( targetFile ) );
 		}
 
-		let buffer = [];
-		let firstLine = true;
+		var buffer = [];
+		var firstLine = true;
 		fs.readFileSync( sourceFile ).toString().split( /\r\n|\r|\n/ ).forEach( ( line ) => {
 			if ( firstLine ) {
-				const hasBom = line.length && line.charCodeAt( 0 ) === 65279;
+				var hasBom = line.length && line.charCodeAt( 0 ) === 65279;
 				if ( !hasBom && extension in bomExtensions ) {
 					buffer.push( String.fromCharCode( 65279 ) );
 				} else if ( hasBom && !( extension in bomExtensions ) ) {
@@ -114,14 +114,14 @@ ckbuilder.tools = {
 	 * @param {java.io.File} targetFile
 	 */
 	updateCopyrights: function( targetFile ) {
-		const extension = ckbuilder.io.getExtension( targetFile );
-		const bomExtensions = { asp: 1, js: 1 };
+		var extension = ckbuilder.io.getExtension( targetFile );
+		var bomExtensions = { asp: 1, js: 1 };
 
 		if ( !lineEndings[ extension ] ) {
 			return false;
 		}
 
-		let text = ckbuilder.io.readFile( targetFile );
+		var text = ckbuilder.io.readFile( targetFile );
 		if ( text.indexOf( "Copyright" ) === -1 || text.indexOf( "CKSource" ) === -1 ) {
 			return;
 		}
@@ -148,7 +148,7 @@ ckbuilder.tools = {
 	 * @static
 	 */
 	getCopyrightFromText: function( text ) {
-		let result = regexLib.copyrightComment.exec( text );
+		var result = regexLib.copyrightComment.exec( text );
 		if ( result !== null ) {
 			return result[ 0 ];
 		}
@@ -206,11 +206,11 @@ ckbuilder.tools = {
 	 * @static
 	 */
 	validateJavaScriptFiles: function( sourceLocation ) {
-		let result = "";
-		const files = fs.readdirSync( sourceLocation );
+		var result = "";
+		var files = fs.readdirSync( sourceLocation );
 		files.forEach( ( file ) => {
-			let error;
-			const f = path.resolve( sourceLocation, file );
+			var error;
+			var f = path.resolve( sourceLocation, file );
 			if ( fs.statSync( f ).isDirectory() ) {
 				error = this.validateJavaScriptFiles( f );
 				if ( error ) {
@@ -234,10 +234,10 @@ ckbuilder.tools = {
 	 * @static
 	 */
 	validateJavaScriptFile: function( sourceLocation ) {
-		const messages = linter.verify( ckbuilder.io.readFile( sourceLocation ), {}, { filename: sourceLocation } );
-		let result = [];
+		var messages = linter.verify( ckbuilder.io.readFile( sourceLocation ), {}, { filename: sourceLocation } );
+		var result = [];
 		if ( messages.length ) {
-			for ( let i = 0; i < messages.length; i++ ) {
+			for ( var i = 0; i < messages.length; i++ ) {
 				result.push( sourceLocation + " (line " + messages[ 0 ].line + "):\n    " + messages[ 0 ].message );
 			}
 		}
@@ -271,15 +271,15 @@ ckbuilder.tools = {
 	 * LEAVE_UNMINIFIED (Boolean) Indicates whether the file should be minified.
 	 */
 	processDirectives: function( location, directives, core ) {
-		let flags = {};
-		const text = ckbuilder.io.readFile( location );
+		var flags = {};
+		var text = ckbuilder.io.readFile( location );
 
 		if ( text.indexOf( "%LEAVE_UNMINIFIED%" ) !== -1 ) {
 			flags.LEAVE_UNMINIFIED = true;
 		}
 
 		if ( text.indexOf( "%VERSION%" ) !== -1 || text.indexOf( "%REV%" ) !== -1 || text.indexOf( "%TIMESTAMP%" ) !== -1 || text.indexOf( "%REMOVE_START" ) !== -1 || text.indexOf( "%REMOVE_END" ) !== -1 || text.indexOf( "%REMOVE_LINE" ) !== -1 ) {
-			let processedText = this.processDirectivesInString( text, directives );
+			var processedText = this.processDirectivesInString( text, directives );
 			if ( core ) {
 				processedText = this.processCoreDirectivesInString( processedText );
 			}

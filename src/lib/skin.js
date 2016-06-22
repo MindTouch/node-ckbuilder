@@ -5,9 +5,9 @@
 
 "use strict";
 
-const fs = require( "fs-extra" );
-const path = require( "path" );
-const ckbuilder = {
+var fs = require( "fs-extra" );
+var path = require( "path" );
+var ckbuilder = {
 	io: require( "./io" ),
 	javascript: require( "./javascript" ),
 	css: require( "./css" ),
@@ -17,7 +17,7 @@ const ckbuilder = {
 	options: require( "./options" )
 };
 
-const regexLib = {
+var regexLib = {
 	skinName: new RegExp( 'CKEDITOR\\.skin\\.name\\s*\\=\\s*([\'"])([a-zA-Z0-9-_]+)([\'"])' )
 };
 

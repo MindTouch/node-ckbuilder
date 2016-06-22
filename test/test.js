@@ -3,14 +3,14 @@
  For licensing, see LICENSE.md
  */
 
-const ckbuilder = require( '../src/ckbuilder' );
+var ckbuilder = require( '../src/ckbuilder' );
 ckbuilder.options.debug = 2;
 
-const fs = require( 'fs-extra' );
-const path = require( 'path' );
-const md5 = require( 'js-md5' );
-const Canvas = require( "canvas" );
-const Image = Canvas.Image;
+var fs = require( 'fs-extra' );
+var path = require( 'path' );
+var md5 = require( 'js-md5' );
+var Canvas = require( "canvas" );
+var Image = Canvas.Image;
 
 // Run tests.
 var passCount = 0;

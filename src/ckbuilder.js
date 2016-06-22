@@ -6,11 +6,11 @@
 "use strict";
 
 if ( require.main === module ) {
-	const Controller = require( "./lib/controller" );
-	const controller = new Controller();
+	var Controller = require( "./lib/controller" );
+	var controller = new Controller();
 	controller.run();
 } else {
-	const ckbuilder = {
+	var ckbuilder = {
 		builder: require( "./lib/builder" ),
 		config: require( "./lib/config" ),
 		css: require( "./lib/css" ),

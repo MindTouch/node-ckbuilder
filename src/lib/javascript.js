@@ -5,16 +5,16 @@
 
 "use strict";
 
-const path = require( "path" );
-const uglifyjs = require( "uglify-js" );
-const linter = require( "eslint" ).linter;
-const ckbuilder = {
+var path = require( "path" );
+var uglifyjs = require( "uglify-js" );
+var linter = require( "eslint" ).linter;
+var ckbuilder = {
 	io: require( "./io" )
 };
 
 function filterComments( node, comment ) {
-    const text = comment.value;
-    const type = comment.type;
+    var text = comment.value;
+    var type = comment.type;
     if ( type === "comment2" ) {
 
         // multiline comment
@@ -32,9 +32,9 @@ function filterComments( node, comment ) {
  * @returns {String}
  */
 function compileFile( file ) {
-	const code = ckbuilder.io.readFile( file );
+	var code = ckbuilder.io.readFile( file );
 	try {
-		const result = uglifyjs.minify( code, {
+		var result = uglifyjs.minify( code, {
 			fromString: true,
 			output: {
 				comments: filterComments
@@ -61,7 +61,7 @@ ckbuilder.javascript = {
 	 * @static
 	 */
 	findErrors: function( code, fileName ) {
-		const messages = linter.verify( code, {}, { filename: fileName || "input.js" });
+		var messages = linter.verify( code, {}, { filename: fileName || "input.js" });
 		return messages.length ? messages : null;
 	},
 
@@ -74,7 +74,7 @@ ckbuilder.javascript = {
 	 * @static
 	 */
 	removeWhiteSpace: function( code, fileName ) {
-		const result = uglifyjs.minify( code, {
+		var result = uglifyjs.minify( code, {
 			fromString: true,
 			output: {
 				comments: filterComments,

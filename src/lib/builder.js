@@ -5,10 +5,10 @@
 
 "use strict";
 
-const fs = require( "fs-extra" );
-const path = require( "path" );
-const vm = require( "vm" );
-const ckbuilder = {
+var fs = require( "fs-extra" );
+var path = require( "path" );
+var vm = require( "vm" );
+var ckbuilder = {
 	io: require( "./io" ),
 	plugin: require( "./plugin" ),
 	lang: require( "./lang" ),
@@ -30,7 +30,7 @@ const ckbuilder = {
  * @param {String} srcDir
  * @param {String} dstDir
  */
-const builder = function( srcDir, dstDir ) {
+var builder = function( srcDir, dstDir ) {
 	/**
 	 * Build configuration.
 	 *

@@ -5,7 +5,7 @@
 
 "use strict";
 
-const argv = require( "yargs" )
+var argv = require( "yargs" )
 	.boolean( [
 		"build",
 		"generate-build-config",
@@ -16,7 +16,7 @@ const argv = require( "yargs" )
 		"verify-plugin",
 		"verify-skin"
 	] ).argv;
-const ckbuilder = {
+var ckbuilder = {
 	io: require( "./io" ),
 	builder: require( "./builder" ),
 	plugin: require( "./plugin" ),
@@ -36,7 +36,7 @@ const ckbuilder = {
  *
  * @type {Object}
  */
-const commandsHandlers = {
+var commandsHandlers = {
 	'help': function() {
 		this.printHelp( [ "help.txt" ] );
 	},
@@ -51,7 +51,7 @@ const commandsHandlers = {
 			ckbuilder.error( "The build command requires two arguments." );
 		}
 
-		const builder = ckbuilder.builder( argv._[ 0 ], argv._[ 1 ] );
+		var builder = ckbuilder.builder( argv._[ 0 ], argv._[ 1 ] );
 		if ( ckbuilder.options.core ) {
 			builder.generateCore();
 		} else {
@@ -70,7 +70,7 @@ const commandsHandlers = {
 			ckbuilder.error( "The preprocess-core command requires two arguments." );
 		}
 
-		const builder = ckbuilder.builder( argv._[ 0 ], argv._[ 1 ] );
+		var builder = ckbuilder.builder( argv._[ 0 ], argv._[ 1 ] );
 		builder.preprocess();
 	},
 	'preprocess-plugin': function() {
@@ -136,9 +136,9 @@ class Controller {
 	 * @param {Array} types
 	 */
 	printHelp( types ) {
-		const date = new Date();
+		var date = new Date();
 
-		for ( let i = 0; i < types.length; i++ ) {
+		for ( var i = 0; i < types.length; i++ ) {
 			console.log( "\n" + ckbuilder.io.readFile( "src/assets/" + types[ i ] ) );
 		}
 
@@ -149,8 +149,8 @@ class Controller {
 	 * Executes commands based on passed arguments.
 	 */
 	run() {
-		let foundCommandName = null;
-		for ( let commandName in commandsHandlers ) {
+		var foundCommandName = null;
+		for ( var commandName in commandsHandlers ) {
 			if ( argv[ commandName ] ) {
 				foundCommandName = commandName;
 				break;

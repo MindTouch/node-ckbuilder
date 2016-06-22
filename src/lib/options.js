@@ -5,16 +5,16 @@
 
 'use strict';
 
-const argv = require( "yargs" )
+var argv = require( "yargs" )
 	.alias( "d", "debug-level" )
 	.alias( "s", "skip-omitted-in-build-config" )
 	.argv;
 
-const now = new Date();
-let timestamp = parseInt( now.getUTCFullYear() % 1000, 10 ).toString( 36 ) + parseInt( now.getUTCMonth(), 10 ).toString( 36 ) + parseInt( now.getUTCDate(), 10 ).toString( 36 ) + parseInt( now.getUTCHours(), 10 ).toString( 36 );
+var now = new Date();
+var timestamp = parseInt( now.getUTCFullYear() % 1000, 10 ).toString( 36 ) + parseInt( now.getUTCMonth(), 10 ).toString( 36 ) + parseInt( now.getUTCDate(), 10 ).toString( 36 ) + parseInt( now.getUTCHours(), 10 ).toString( 36 );
 timestamp = timestamp.toUpperCase();
 
-let options = {
+var options = {
 	debug : 0,
 	all : true,
 	overwrite : false,

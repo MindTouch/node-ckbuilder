@@ -5,11 +5,11 @@
 
 "use strict";
 
-const fs = require( "fs-extra" );
-const path = require( "path" );
-const Canvas = require( "canvas" );
-const Image = Canvas.Image;
-const ckbuilder = {
+var fs = require( "fs-extra" );
+var path = require( "path" );
+var Canvas = require( "canvas" );
+var Image = Canvas.Image;
+var ckbuilder = {
 	io: require( "./io" ),
 	utils: require( "./utils" ),
 	options: require( "./options" )

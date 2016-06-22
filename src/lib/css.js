@@ -5,10 +5,10 @@
 
 "use strict";
 
-const fs = require( "fs-extra" );
-const path = require( "path" );
-const cssmin = require( "./cssmin" );
-const ckbuilder = {
+var fs = require( "fs-extra" );
+var path = require( "path" );
+var cssmin = require( "./cssmin" );
+var ckbuilder = {
 	io: require( "./io" ),
 	tools: require( "./tools" ),
 	options: require( "./options" )
