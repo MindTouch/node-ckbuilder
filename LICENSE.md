@@ -14,50 +14,6 @@ CKSource engineers and consists of CKSource-owned intellectual
 property. In some specific instances, CKBuilder will incorporate work
 done by developers outside of CKSource with their express permission.
 
-### Commons CLI ###
-
-The Apache Commons CLI library provides an API for parsing command line options passed to programs.
-
-Location: `lib/apache`
-
-License: Apache License, Version 2.0
-
-### Google Closure Compiler ###
-
-The Closure Compiler performs checking, instrumentation, and optimizations on JavaScript code.
-
-Location: `lib/closure`
-
-License: Apache License, Version 2.0
-
-### JSON ###
-
-Location: `lib/json`
-
-License: Public Domain
-
-### Rhino ###
-
-Rhino is an open source JavaScript engine.
-
-Location: `lib/rhino`
-
-License: MPL 2.0
-
-### JTar ###
-
-JTar is a simple Java Tar library, that provides an easy way to create and read tar files using IO streams.<br>
-
-Location: `lib/javatar`<br>
-
-License: Public Domain
-
-### Java Tar Package (TarTool) ###
-
-Location: `lib/tartool`<br>
-
-License: Public Domain
-
 ### cssmin.js / YUI Compressor ###
 
 A JavaScript port of the CSS minification tool.<br>
