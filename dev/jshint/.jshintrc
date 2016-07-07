@@ -1,0 +1,22 @@
+{
+	"bitwise" : false,
+	// "forin" : true,
+	"esnext": true,
+	"immed" : true,
+	"latedef" : true,
+	"node" : true,
+	"nonew" : true,
+	"smarttabs" : true,
+	"trailing" : true,
+	"undef" : true,
+	"unused": true,
+	"rhino" : true,
+	// "curly": true,
+
+	"eqnull": true,
+	"eqeqeq": true,
+	"noarg": true,
+	// "onevar": true,,
+	"globals": {
+	}
+}
