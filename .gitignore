@@ -1,8 +1,5 @@
-
-/.idea
 /docs/output
 /test/tmp
 /dev/scripts/release
-/bin
-/node_modules
+node_modules
 .DS_Store
