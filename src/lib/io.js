@@ -35,20 +35,20 @@ function compressDirectory( sourceLocation, outStream, compressMethod, rootDir, 
 	if ( !( compressMethod in { zip: 1, tar: 1 } ) ) {
 		throw 'Unknown compression method: ' + compressMethod;
 	}
-    var output = fs.createWriteStream( outStream );
-    var archive = archiver( compressMethod );
-    output.on( 'close', () => {
-    	if ( typeof cb === 'function' ) {
-    		cb();
-    	}
-    });
-    archive.on( 'error', ( e ) => {
-        console.error( 'An error occurred during (' + compressMethod + ') compression of ' + path.resolve( sourceLocation ) + ': ' + e );
-        throw e;
-    });
-    archive.pipe( output );
-    archive.directory( sourceLocation, rootDir );
-    archive.finalize();
+	var output = fs.createWriteStream( outStream );
+	var archive = archiver( compressMethod );
+	output.on( 'close', () => {
+		if ( typeof cb === 'function' ) {
+			cb();
+		}
+	});
+	archive.on( 'error', ( e ) => {
+		console.error( 'An error occurred during (' + compressMethod + ') compression of ' + path.resolve( sourceLocation ) + ': ' + e );
+		throw e;
+	});
+	archive.pipe( output );
+	archive.directory( sourceLocation, rootDir );
+	archive.finalize();
 }
 
 /**
