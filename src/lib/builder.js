@@ -808,27 +808,42 @@ var builder = function( srcDir, dstDir ) {
 				return String( version ).toLowerCase().replace( / /g, "_" ).replace( /\(\)/g, "" );
 			};
 
-			var stats;
+			var promise = Promise.resolve();
 			if ( !ckbuilder.options.noZip ) {
 				var zipFile = path.join( path.dirname( targetLocation ), "ckeditor_" + normalize( ckbuilder.options.version ) + ".zip" );
-				ckbuilder.io.zipDirectory( targetLocation, zipFile, "ckeditor" );
-				stats = fs.statSync( zipFile );
-				console.log( "    Created " + path.basename( zipFile ) + "...: " + stats.size + " bytes (" + Math.round( stats.size / info.size * 100 ) + "% of original)" );
+				promise = promise
+					.then( function() {
+						return ckbuilder.io.zipDirectory( targetLocation, zipFile, "ckeditor" );
+					})
+					.then( function() {
+						var stats = fs.statSync( zipFile );
+						console.log( "    Created " + path.basename( zipFile ) + "...: " + stats.size + " bytes (" + Math.round( stats.size / info.size * 100 ) + "% of original)" );
+					}).catch( function( error ) {
+						console.error( error );
+					});
 			}
 			if ( !ckbuilder.options.noTar ) {
 				var tarFile = path.join( path.dirname( targetLocation ), "ckeditor_" + normalize( ckbuilder.options.version ) + ".tar.gz" );
-				ckbuilder.io.targzDirectory( targetLocation, tarFile, "ckeditor" );
-				stats = fs.statSync( tarFile );
-				console.log( "    Created " + path.basename( tarFile ) + ": " + stats.size + " bytes (" + Math.round( stats.size / info.size * 100 ) + "% of original)" );
+				promise = promise
+					.then( function() {
+						return ckbuilder.io.targzDirectory( targetLocation, tarFile, "ckeditor" );
+					})
+					.then( function() {
+						var stats = fs.statSync( tarFile );
+						console.log( "    Created " + path.basename( tarFile ) + ": " + stats.size + " bytes (" + Math.round( stats.size / info.size * 100 ) + "% of original)" );
+					}).catch( function( error ) {
+						console.error( error );
+					});
 			}
-			ckbuilder.utils.printUsedTime( time );
-
-			console.log( "\n==========================" );
-			console.log( "Release process completed:\n" );
-			console.log( "    Number of files: " + info.files );
-			console.log( "    Total size.....: " + info.size + " bytes" );
-			ckbuilder.utils.printUsedTime( startTime );
-			console.log( "" );
+			promise.then( function() {
+				ckbuilder.utils.printUsedTime( time );
+				console.log( "\n==========================" );
+				console.log( "Release process completed:\n" );
+				console.log( "    Number of files: " + info.files );
+				console.log( "    Total size.....: " + info.size + " bytes" );
+				ckbuilder.utils.printUsedTime( startTime );
+				console.log( "" );
+			});
 		}
 	};
 };

@@ -25,30 +25,30 @@ var BOM = String.fromCharCode( BOM_CHAR_CODE );
  * @param {String} compressMethod The type of the archive (tar.gz|zip)
  * @param {String} rootDir The root folder of the archive.
  */
-function compressDirectory( sourceLocation, outStream, compressMethod, rootDir, cb ) {
-	if ( ckbuilder.options.debug ) {
-		console.log( '    ' + compressMethod + ': ' + path.resolve( sourceLocation ) );
-	}
-	if ( !rootDir ) {
-		rootDir = '';
-	}
-	if ( !( compressMethod in { zip: 1, tar: 1 } ) ) {
-		throw 'Unknown compression method: ' + compressMethod;
-	}
-	var output = fs.createWriteStream( outStream );
-	var archive = archiver( compressMethod );
-	output.on( 'close', () => {
-		if ( typeof cb === 'function' ) {
-			cb();
+function compressDirectory( sourceLocation, outStream, compressMethod, rootDir ) {
+	return new Promise( function( resolve, reject ) {
+		if ( ckbuilder.options.debug ) {
+			console.log( "    " + compressMethod + ": " + path.resolve( sourceLocation ) );
 		}
+		if ( !rootDir ) {
+			rootDir = '';
+		}
+		if ( !( compressMethod in { zip: 1, tar: 1 } ) ) {
+			reject( new Error( "Unknown compression method: " + compressMethod ) );
+			return;
+		}
+		var output = fs.createWriteStream( outStream );
+		var archive = archiver( compressMethod );
+		output.on( "close", () => {
+			resolve();
+		});
+		archive.on( "error", ( e ) => {
+			reject( new Error( "An error occurred during (" + compressMethod + ") compression of " + path.resolve( sourceLocation ) + ": " + e ) );
+		});
+		archive.pipe( output );
+		archive.directory( sourceLocation, rootDir );
+		archive.finalize();
 	});
-	archive.on( 'error', ( e ) => {
-		console.error( 'An error occurred during (' + compressMethod + ') compression of ' + path.resolve( sourceLocation ) + ': ' + e );
-		throw e;
-	});
-	archive.pipe( output );
-	archive.directory( sourceLocation, rootDir );
-	archive.finalize();
 }
 
 /**
@@ -246,7 +246,7 @@ ckbuilder.io = {
 	 * @static
 	 */
 	zipDirectory: function( sourceLocation, targetFile, rootDir ) {
-		compressDirectory( sourceLocation, targetFile, 'zip', rootDir );
+		return compressDirectory( sourceLocation, targetFile, 'zip', rootDir );
 	},
 
 	/**
@@ -258,7 +258,7 @@ ckbuilder.io = {
 	 * @static
 	 */
 	targzDirectory: function( sourceLocation, targetFile, rootDir ) {
-		compressDirectory( sourceLocation, targetFile, 'tar', rootDir );
+		return compressDirectory( sourceLocation, targetFile, 'tar', rootDir );
 	},
 
 	/**
