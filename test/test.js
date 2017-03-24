@@ -9,12 +9,17 @@ ckbuilder.options.debug = 2;
 var fs = require( 'fs-extra' );
 var path = require( 'path' );
 var md5 = require( 'js-md5' );
-var Canvas = require( "canvas" );
-var Image = Canvas.Image;
+try {
+	var Canvas = require( "canvas" );
+	var Image = Canvas.Image;
+} catch( e ) {
+	Image = null;
+}
 
 // Run tests.
 var passCount = 0;
 var failCount = 0;
+var skipCount = 0;
 var assetsPath = './test/_assets';
 var assetsDir = path.resolve( assetsPath );
 var tempPath = './test/tmp';
@@ -36,9 +41,10 @@ function assertDirectoriesAreEqual( expected, actual, title )
 		actualFile = path.resolve( actual, dirList[i] );
 		expectedFile = path.resolve( expected, dirList[i] );
 		assertEquals( true, ckbuilder.io.exists( actualFile ), '[' + title + '] file should exist: ' + actualFile );
-		assertEquals( fs.statSync( expectedFile ).isDirectory(), fs.statSync( actualFile ).isDirectory(), '[' + title + '] files should be of the same type: ' + actualFile );
 		if ( ckbuilder.io.exists( actualFile ) )
 		{
+			assertEquals( fs.statSync( expectedFile ).isDirectory(), fs.statSync( actualFile ).isDirectory(), '[' + title + '] files should be of the same type: ' + actualFile );
+
 			if ( fs.statSync( actualFile ).isDirectory() )
 				assertDirectoriesAreEqual( expectedFile, actualFile, title );
 			else
@@ -208,6 +214,11 @@ function testCssProcessor( testFolder, leaveCssUnminified )
 
 function testSprite()
 {
+	if ( !Image ) {
+		console.warn( 'Canvas module in not installed. Skipping sprite test...' );
+		skipCount += 12;
+		return;
+	}
 	var plugins = ['basicstyles', 'link', 'list', 'table'];
 	var pluginsLocation = path.join( assetsDir, "/sprite/plugins" );
 	var skinLocation = path.join( assetsDir, "/sprite/skins/v2" );
@@ -559,7 +570,7 @@ function testSkinBuilder()
 	ckbuilder.options.timestamp = timestampStub;
 	ckbuilder.options.leaveCssUnminified = true;
 	var sourceLocation = path.resolve( assetsDir, 'skins/kama' );
-	var correctResultLocation = path.resolve( assetsDir, 'skins/kama_correct' );
+	var correctResultLocation = path.resolve( assetsDir, Canvas ? 'skins/kama_correct' : 'skins/kama_correct_noicons' );
 	var targetLocation = path.resolve( tempDir, 'skins/kama' );
 
 	try {
@@ -567,9 +578,9 @@ function testSkinBuilder()
 		assertDirectoriesAreEqual( correctResultLocation, targetLocation, 'Checking skin builder (CSS minification disabled)' );
 
 		ckbuilder.options.leaveCssUnminified = false;
-		var sourceLocation = path.resolve( assetsDir, 'skins_minified/kama' );
-		var correctResultLocation = path.resolve( assetsDir, 'skins_minified/kama_correct' );
-		var targetLocation = path.resolve( tempDir, 'skins_minified/kama' );
+		sourceLocation = path.resolve( assetsDir, 'skins_minified/kama' );
+		correctResultLocation = path.resolve( assetsDir, Canvas ? 'skins_minified/kama_correct' : 'skins_minified/kama_correct_noicons' );
+		targetLocation = path.resolve( tempDir, 'skins_minified/kama' );
 
 		ckbuilder.skin.build( sourceLocation, targetLocation );
 		assertDirectoriesAreEqual( correctResultLocation, targetLocation, 'Checking skin builder (CSS minification enabled)' );
@@ -719,4 +730,4 @@ testSamples();
 testCopyrights();
 
 console.log( '' );
-console.log( 'Finished: ' + passCount + ' passed / ' + failCount + ' failed' );
+console.log( 'Finished: ' + passCount + ' passed / ' + failCount + ' failed / ' + skipCount + ' skipped' );

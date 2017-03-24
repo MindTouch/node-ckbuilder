@@ -7,8 +7,13 @@
 
 var fs = require( "fs-extra" );
 var path = require( "path" );
-var Canvas = require( "canvas" );
-var Image = Canvas.Image;
+try {
+	var Canvas = require( "canvas" );
+	var Image = Canvas.Image;
+} catch( e ) {
+	Canvas = null;
+	Image = null;
+}
 var ckbuilder = {
 	io: require( "./io" ),
 	utils: require( "./utils" ),
@@ -168,6 +173,10 @@ ckbuilder.image = {
 			if ( ckbuilder.options.debug ) {
 				console.log( "No images given, sprite file will not be created." );
 			}
+			return '';
+		}
+		if ( !Canvas ) {
+			console.log( "Canvas module is not installed, sprite file will not be created." );
 			return '';
 		}
 
