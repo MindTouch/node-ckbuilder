@@ -153,7 +153,11 @@ function testLanguageFiles()
 		var testName = path.basename( correctFile ).replace( ".correct", "" );
 		var tempFile = path.resolve( tempDir + '/langfiles/' + testName );
 
-		assertEquals( ckbuilder.io.readFile( correctFile ), ckbuilder.io.readFile( tempFile ), 'Language file: ' + testName );
+		// Update copyright
+		var correct = ckbuilder.io.readFile( correctFile );
+		correct = correct.replace( ckbuilder.tools.getCopyrightFromText( correct ), ckbuilder.utils.copyright( "\n" ) );
+
+		assertEquals( correct, ckbuilder.io.readFile( tempFile ), 'Language file: ' + testName );
 	}
 	var french = path.resolve( tempDir + '/langfiles/fr.js' );
 	assertEquals( ckbuilder.io.exists( french ), false );
