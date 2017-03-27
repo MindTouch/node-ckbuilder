@@ -13,6 +13,7 @@ try {
 	var Canvas = require( "canvas" );
 	var Image = Canvas.Image;
 } catch( e ) {
+	Canvas = null;
 	Image = null;
 }
 
@@ -218,7 +219,7 @@ function testCssProcessor( testFolder, leaveCssUnminified )
 
 function testSprite()
 {
-	if ( !Image ) {
+	if ( !Canvas ) {
 		console.warn( 'Canvas module in not installed. Skipping sprite test...' );
 		skipCount += 12;
 		return;
