@@ -1,6 +1,6 @@
 {
   "name": "node-ckbuilder",
-  "version": "0.3.0",
+  "version": "0.3.0-noicons",
   "description": "Node.js builder for CKEditor",
   "main": "src/ckbuilder.js",
   "directories": {
@@ -31,8 +31,5 @@
   "homepage": "https://github.com/MindTouch/node-ckbuilder#readme",
   "devDependencies": {
     "js-md5": "0.4.1"
-  },
-  "optionalDependencies": {
-    "canvas": "1.3.15"
   }
 }
