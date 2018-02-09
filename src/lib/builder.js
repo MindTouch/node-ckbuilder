@@ -646,11 +646,10 @@ var builder = function( srcDir, dstDir ) {
 			extraCoreJavaScriptFiles = {};
 			extraCoreJavaScriptCode = { start: [], aftercore: [], end: [] };
 
-			var instruction;
-			var regexInstruction = new RegExp( '^([\\S\\s]*),(aftercore|end|start)$', 'gm' );
-
 			for ( var i = 0; i < config.js.length; i++ ) {
+				var regexInstruction = new RegExp( '^([\\S\\s]*),(aftercore|end|start)$', 'gm' );
 				var matcher = regexInstruction.exec( config.js[ i ] );
+				var instruction;
 				var file;
 				var filePath;
 
