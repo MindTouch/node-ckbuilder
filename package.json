@@ -1,6 +1,6 @@
 {
   "name": "node-ckbuilder",
-  "version": "0.3.0-noicons",
+  "version": "0.4.0-noicons",
   "description": "Node.js builder for CKEditor",
   "main": "src/ckbuilder.js",
   "directories": {
