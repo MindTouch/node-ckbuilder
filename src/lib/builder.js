@@ -834,7 +834,7 @@ var builder = function( srcDir, dstDir ) {
 						console.error( error );
 					});
 			}
-			promise.then( function() {
+			return promise.then( function() {
 				ckbuilder.utils.printUsedTime( time );
 				console.log( "\n==========================" );
 				console.log( "Release process completed:\n" );
