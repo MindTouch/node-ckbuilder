@@ -11,8 +11,8 @@
     "adm-zip": "0.4.14",
     "archiver": "4.0.1",
     "eslint": "6.8.0",
-    "fs-extra": "9.0.0",
-    "uglify-js": "3.9.1",
+    "fs-extra": "8.0.0",
+    "uglify-js": "2.8.29",
     "yargs": "15.3.1"
   },
   "scripts": {
