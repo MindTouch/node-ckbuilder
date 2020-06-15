@@ -1,6 +1,6 @@
 {
   "name": "node-ckbuilder",
-  "version": "0.4.3-beta.0",
+  "version": "0.4.3-beta.1",
   "description": "Node.js builder for CKEditor",
   "main": "src/ckbuilder.js",
   "directories": {
