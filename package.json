@@ -33,6 +33,6 @@
     "js-md5": "0.4.1"
   },
   "optionalDependencies": {
-    "canvas": "1.6.9"
+    "canvas": "1.6.10"
   }
 }
