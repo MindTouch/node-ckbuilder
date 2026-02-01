@@ -10,7 +10,7 @@
   "dependencies": {
     "adm-zip": "0.4.14",
     "archiver": "4.0.1",
-    "eslint": "6.8.0",
+    "eslint": "9.26.0",
     "fs-extra": "9.0.0",
     "uglify-js": "3.9.1",
     "yargs": "15.3.1"
